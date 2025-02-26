@@ -184,6 +184,7 @@ struct ExerciseChartPreview: View {
     let exerciseName: String
     @EnvironmentObject var workoutManager: WorkoutManager
     @State private var weightData: [(date: Date, weight: Double)] = []
+    @State private var hasAttemptedLoad = false
     
     var body: some View {
         VStack(alignment: .leading) {
@@ -191,9 +192,20 @@ struct ExerciseChartPreview: View {
                 .font(.headline)
                 .lineLimit(1)
             
-            if weightData.isEmpty {
+            if !hasAttemptedLoad {
                 ProgressView()
                     .frame(height: 120)
+            } else if weightData.isEmpty {
+                VStack(spacing: 8) {
+                    Image(systemName: "chart.line.downtrend.xyaxis")
+                        .font(.largeTitle)
+                        .foregroundColor(.secondary)
+                    Text("No workout data")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                .frame(height: 120)
+                .frame(maxWidth: .infinity)
             } else {
                 Chart {
                     ForEach(weightData, id: \.date) { dataPoint in
@@ -229,10 +241,12 @@ struct ExerciseChartPreview: View {
     }
     
     private func loadChartData() {
+        print("DEBUG: Loading chart data for exercise: \(exerciseName)")
         // Find all workouts with this exercise
         let workouts = workoutManager.fetchWorkoutsContainingExercise(named: exerciseName)
         
         var dataPoints: [(date: Date, weight: Double)] = []
+        var foundAnyCompletedSets = false
         
         for workout in workouts {
             guard let date = workout.value(forKey: "date") as? Date,
@@ -254,8 +268,11 @@ struct ExerciseChartPreview: View {
                     let weight = set.value(forKey: "weight") as? Double ?? 0.0
                     let reps = set.value(forKey: "reps") as? Int16 ?? 0
                     
-                    if reps > 0 && weight > maxWeight {
-                        maxWeight = weight
+                    if reps > 0 && weight > 0 {
+                        foundAnyCompletedSets = true
+                        if weight > maxWeight {
+                            maxWeight = weight
+                        }
                     }
                 }
             }
@@ -267,6 +284,9 @@ struct ExerciseChartPreview: View {
         
         // Sort by date and take up to 10 most recent
         weightData = dataPoints.sorted { $0.date < $1.date }.suffix(10)
+        hasAttemptedLoad = true
+        
+        print("DEBUG: Found \(dataPoints.count) data points for \(exerciseName), any completed sets: \(foundAnyCompletedSets)")
     }
 }
 

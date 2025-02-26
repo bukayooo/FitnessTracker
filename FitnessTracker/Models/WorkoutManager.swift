@@ -442,31 +442,56 @@ class WorkoutManager: ObservableObject {
         }
     }
     
-    private func getLastWorkoutSetData(for exercise: NSManagedObject, setNumber: Int16) -> (reps: Int16, weight: Double)? {
-        let fetchRequest = NSFetchRequest<NSManagedObject>(entityName: "WorkoutExercise")
-        fetchRequest.predicate = NSPredicate(format: "exercise == %@", exercise)
-        fetchRequest.sortDescriptors = [NSSortDescriptor(key: "workout.date", ascending: false)]
-        fetchRequest.fetchLimit = 1
+    func getLastWorkoutSetData(for exercise: NSManagedObject, setNumber: Int16) -> (reps: Int16, weight: Double)? {
+        // Get the exercise name
+        let exerciseName = exercise.value(forKey: "name") as? String ?? ""
+        print("DEBUG: Looking for previous data for exercise: \(exerciseName), set: \(setNumber)")
+        
+        // First, find the most recent completed workout containing this exercise
+        let workoutRequest = NSFetchRequest<NSManagedObject>(entityName: "Workout")
+        workoutRequest.sortDescriptors = [NSSortDescriptor(key: "date", ascending: false)]
+        workoutRequest.fetchLimit = 5 // Check the last 5 workouts to find relevant data
         
         do {
-            guard let lastWorkoutExercise = try viewContext.fetch(fetchRequest).first else {
-                return nil
+            let recentWorkouts = try viewContext.fetch(workoutRequest)
+            
+            // Look through recent workouts for matching exercise data
+            for workout in recentWorkouts {
+                if let exercises = workout.value(forKey: "exercises") as? NSSet {
+                    for case let workoutExercise as NSManagedObject in exercises {
+                        let currentExName = workoutExercise.value(forKey: "name") as? String ?? ""
+                        
+                        // If we found a matching exercise name
+                        if currentExName == exerciseName {
+                            print("DEBUG: Found matching exercise '\(exerciseName)' in previous workout")
+                            
+                            // Get sets for this exercise
+                            if let sets = workoutExercise.value(forKey: "sets") as? NSSet {
+                                // Find matching set by number
+                                for case let setObj as NSManagedObject in sets {
+                                    let currentSetNum = setObj.value(forKey: "setNumber") as? Int16 ?? -1
+                                    
+                                    if currentSetNum == setNumber {
+                                        let reps = setObj.value(forKey: "reps") as? Int16 ?? 0
+                                        let weight = setObj.value(forKey: "weight") as? Double ?? 0.0
+                                        
+                                        // Only return non-zero values
+                                        if reps > 0 || weight > 0 {
+                                            print("DEBUG: Found previous data: \(reps) reps, \(weight) weight")
+                                            return (reps, weight)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
             
-            let setsFetchRequest = NSFetchRequest<NSManagedObject>(entityName: "ExerciseSet")
-            setsFetchRequest.predicate = NSPredicate(format: "workoutExercise == %@ AND setNumber == %d", lastWorkoutExercise, setNumber)
-            setsFetchRequest.fetchLimit = 1
-            
-            guard let set = try viewContext.fetch(setsFetchRequest).first else {
-                return nil
-            }
-            
-            let reps = set.value(forKey: "reps") as? Int16 ?? 0
-            let weight = set.value(forKey: "weight") as? Double ?? 0.0
-            
-            return (reps, weight)
+            print("DEBUG: No previous non-zero data found for \(exerciseName), set \(setNumber)")
+            return nil
         } catch {
-            print("Error fetching last workout data: \(error)")
+            print("ERROR: Failed to fetch previous workout data: \(error)")
             return nil
         }
     }
@@ -494,8 +519,14 @@ class WorkoutManager: ObservableObject {
         }
         
         // Otherwise fetch from store and update cache
-        templates = fetchTemplatesFromStore()
-        return templates
+        let fetchedTemplates = fetchTemplatesFromStore()
+        
+        // Update templates without triggering a publisher during the view update cycle
+        DispatchQueue.main.async {
+            self.templates = fetchedTemplates
+        }
+        
+        return fetchedTemplates
     }
     
     // Private method to fetch templates from the store
@@ -530,7 +561,7 @@ class WorkoutManager: ObservableObject {
                 }
             }
             
-            // Update template count
+            // Update template count - but NOT during a view update cycle
             DispatchQueue.main.async {
                 self.templateCount = results.count
             }
@@ -569,7 +600,9 @@ class WorkoutManager: ObservableObject {
     
     func fetchWorkoutsContainingExercise(named name: String) -> [NSManagedObject] {
         let request = NSFetchRequest<NSManagedObject>(entityName: "Workout")
-        request.predicate = NSPredicate(format: "ANY exercises.name CONTAINS[cd] %@", name)
+        
+        // Use exact match instead of CONTAINS to avoid partial matches
+        request.predicate = NSPredicate(format: "ANY exercises.name == %@", name)
         request.sortDescriptors = [NSSortDescriptor(key: "date", ascending: false)]
         
         do {
@@ -583,34 +616,46 @@ class WorkoutManager: ObservableObject {
     // MARK: - Exercise Progress Utilities
     
     func fetchUniqueExerciseNames() -> [String] {
+        print("DEBUG: Fetching unique exercise names")
         var uniqueNames = Set<String>()
         
-        // Get unique names from WorkoutExercises in completed workouts
+        // Only include exercises that have been used in actual completed workouts with real data
         let workoutExerciseRequest = NSFetchRequest<NSManagedObject>(entityName: "WorkoutExercise")
+        
         do {
             let workoutExercises = try viewContext.fetch(workoutExerciseRequest)
             for exercise in workoutExercises {
-                if let name = exercise.value(forKey: "name") as? String {
-                    uniqueNames.insert(name)
+                if let name = exercise.value(forKey: "name") as? String, !name.isEmpty {
+                    // Only add exercises that have at least one completed set with non-zero values
+                    if let sets = exercise.value(forKey: "sets") as? NSSet {
+                        var hasCompletedSet = false
+                        
+                        for case let setObj as NSManagedObject in sets {
+                            let reps = setObj.value(forKey: "reps") as? Int16 ?? 0
+                            let weight = setObj.value(forKey: "weight") as? Double ?? 0.0
+                            
+                            if reps > 0 && weight > 0 {
+                                hasCompletedSet = true
+                                break
+                            }
+                        }
+                        
+                        if hasCompletedSet {
+                            uniqueNames.insert(name)
+                            print("DEBUG: Found completed exercise: \(name)")
+                        } else {
+                            print("DEBUG: Skipping exercise with no completed sets: \(name)")
+                        }
+                    }
                 }
             }
         } catch {
             print("ERROR: Failed to fetch workout exercises: \(error)")
         }
         
-        // Also get unique names from template exercises 
-        let exerciseRequest = NSFetchRequest<NSManagedObject>(entityName: "Exercise")
-        do {
-            let exercises = try viewContext.fetch(exerciseRequest)
-            for exercise in exercises {
-                if let name = exercise.value(forKey: "name") as? String {
-                    uniqueNames.insert(name)
-                }
-            }
-        } catch {
-            print("ERROR: Failed to fetch exercises: \(error)")
-        }
-        
-        return Array(uniqueNames).sorted()
+        // Sort the unique names alphabetically
+        let sortedNames = Array(uniqueNames).sorted()
+        print("DEBUG: Found \(sortedNames.count) unique exercises with completed sets")
+        return sortedNames
     }
 } 

@@ -579,6 +579,7 @@ struct SetRow: View {
     @State private var showingRestTimer = false
     @State private var showRestButton = false
     @FocusState private var isTextFieldFocused: Bool
+    @State private var previousSetData: (reps: Int16, weight: Double)? = nil
     
     private var setId: String {
         return set.objectID.uriRepresentation().absoluteString
@@ -612,60 +613,120 @@ struct SetRow: View {
                     .frame(width: 60, alignment: .leading)
                     .foregroundColor(isActive ? .primary : .secondary)
                 
-                TextField("0", text: Binding(
-                    get: {
-                        if let values = setValues[setId] {
-                            return values.reps > 0 ? "\(values.reps)" : ""
+                // Show previous data if available
+                if let previousData = previousSetData, 
+                   previousData.reps > 0 || previousData.weight > 0 {
+                    Text("\(previousData.reps) × \(Int(previousData.weight))")
+                        .foregroundColor(.gray.opacity(0.7))
+                        .font(.caption)
+                        .frame(width: 90, alignment: .leading)
+                } else {
+                    Text("")
+                        .frame(width: 90, alignment: .leading)
+                }
+                
+                ZStack(alignment: .center) {
+                    // Use a space instead of "0" as placeholder when there's a previous value
+                    let placeholder = (previousSetData?.reps ?? 0) > 0 ? " " : "0"
+                    
+                    TextField(placeholder, text: Binding(
+                        get: {
+                            if let values = setValues[setId] {
+                                return values.reps > 0 ? "\(values.reps)" : ""
+                            }
+                            let reps = set.value(forKey: "reps") as? Int16 ?? 0
+                            return reps > 0 ? "\(reps)" : ""
+                        },
+                        set: { newValue in
+                            var values = setValues[setId] ?? (reps: 0, weight: 0.0)
+                            values.reps = Int16(newValue) ?? 0
+                            setValues[setId] = values
+                            if let reps = Int16(newValue), reps >= 0 {
+                                let weight = setValues[setId]?.weight ?? (set.value(forKey: "weight") as? Double ?? 0.0)
+                                workoutManager.updateSet(set, reps: reps, weight: weight)
+                            } else if newValue.isEmpty {
+                                // Explicitly set to 0 when field is emptied
+                                values.reps = 0
+                                setValues[setId] = values
+                                workoutManager.updateSet(set, reps: 0, weight: setValues[setId]?.weight ?? (set.value(forKey: "weight") as? Double ?? 0.0))
+                            }
                         }
-                        let reps = set.value(forKey: "reps") as? Int16 ?? 0
-                        return reps > 0 ? "\(reps)" : ""
-                    },
-                    set: { newValue in
-                        var values = setValues[setId] ?? (reps: 0, weight: 0.0)
-                        values.reps = Int16(newValue) ?? 0
-                        setValues[setId] = values
-                        if let reps = Int16(newValue), reps >= 0 {
-                            let weight = setValues[setId]?.weight ?? (set.value(forKey: "weight") as? Double ?? 0.0)
-                            workoutManager.updateSet(set, reps: reps, weight: weight)
+                    ))
+                    .keyboardType(.numberPad)
+                    .multilineTextAlignment(.center)
+                    .padding(8)
+                    .background(
+                        (setValues[setId]?.reps ?? 0) == 0 && (set.value(forKey: "reps") as? Int16 ?? 0) == 0
+                            ? Color(.systemGray6).opacity(0.7)
+                            : Color(.systemGray6)
+                    )
+                    .cornerRadius(8)
+                    .frame(width: 60)
+                    .focused($isTextFieldFocused)
+                    .overlay {
+                        if let previousData = previousSetData,
+                           previousData.reps > 0,
+                           (setValues[setId]?.reps ?? 0) == 0 && (set.value(forKey: "reps") as? Int16 ?? 0) == 0 {
+                            Text("\(previousData.reps)")
+                                .foregroundColor(.gray.opacity(0.7))
+                                .multilineTextAlignment(.center)
+                                .font(.body.weight(.medium))
                         }
                     }
-                ))
-                .keyboardType(.numberPad)
-                .multilineTextAlignment(.center)
-                .padding(8)
-                .background(Color(.systemGray6))
-                .cornerRadius(8)
-                .frame(width: 60)
-                .focused($isTextFieldFocused)
+                }
                 
                 Text("×")
                     .foregroundColor(.secondary)
                 
-                TextField("0", text: Binding(
-                    get: {
-                        if let values = setValues[setId] {
-                            return values.weight > 0 ? "\(Int(values.weight))" : ""
+                ZStack(alignment: .center) {
+                    // Use a space instead of "0" as placeholder when there's a previous value
+                    let placeholder = (previousSetData?.weight ?? 0) > 0 ? " " : "0"
+                    
+                    TextField(placeholder, text: Binding(
+                        get: {
+                            if let values = setValues[setId] {
+                                return values.weight > 0 ? "\(Int(values.weight))" : ""
+                            }
+                            let weight = set.value(forKey: "weight") as? Double ?? 0.0
+                            return weight > 0 ? "\(Int(weight))" : ""
+                        },
+                        set: { newValue in
+                            var values = setValues[setId] ?? (reps: 0, weight: 0.0)
+                            values.weight = Double(newValue) ?? 0.0
+                            setValues[setId] = values
+                            if let weight = Double(newValue), weight >= 0 {
+                                let reps = setValues[setId]?.reps ?? (set.value(forKey: "reps") as? Int16 ?? 0)
+                                workoutManager.updateSet(set, reps: reps, weight: weight)
+                            } else if newValue.isEmpty {
+                                // Explicitly set to 0 when field is emptied
+                                values.weight = 0.0
+                                setValues[setId] = values
+                                workoutManager.updateSet(set, reps: setValues[setId]?.reps ?? (set.value(forKey: "reps") as? Int16 ?? 0), weight: 0.0)
+                            }
                         }
-                        let weight = set.value(forKey: "weight") as? Double ?? 0.0
-                        return weight > 0 ? "\(Int(weight))" : ""
-                    },
-                    set: { newValue in
-                        var values = setValues[setId] ?? (reps: 0, weight: 0.0)
-                        values.weight = Double(newValue) ?? 0.0
-                        setValues[setId] = values
-                        if let weight = Double(newValue), weight >= 0 {
-                            let reps = setValues[setId]?.reps ?? (set.value(forKey: "reps") as? Int16 ?? 0)
-                            workoutManager.updateSet(set, reps: reps, weight: weight)
+                    ))
+                    .keyboardType(.numberPad)
+                    .multilineTextAlignment(.center)
+                    .padding(8)
+                    .background(
+                        (setValues[setId]?.weight ?? 0) == 0 && (set.value(forKey: "weight") as? Double ?? 0.0) == 0
+                            ? Color(.systemGray6).opacity(0.7)
+                            : Color(.systemGray6)
+                    )
+                    .cornerRadius(8)
+                    .frame(width: 60)
+                    .focused($isTextFieldFocused)
+                    .overlay {
+                        if let previousData = previousSetData,
+                           previousData.weight > 0,
+                           (setValues[setId]?.weight ?? 0) == 0 && (set.value(forKey: "weight") as? Double ?? 0.0) == 0 {
+                            Text("\(Int(previousData.weight))")
+                                .foregroundColor(.gray.opacity(0.7))
+                                .multilineTextAlignment(.center)
+                                .font(.body.weight(.medium))
                         }
                     }
-                ))
-                .keyboardType(.numberPad)
-                .multilineTextAlignment(.center)
-                .padding(8)
-                .background(Color(.systemGray6))
-                .cornerRadius(8)
-                .frame(width: 60)
-                .focused($isTextFieldFocused)
+                }
                 
                 Button {
                     let newCompletionStatus = !isSetComplete
@@ -688,6 +749,16 @@ struct SetRow: View {
             }
             .padding(.vertical, 6)
             .opacity(isActive ? 1.0 : 0.6)
+            .onAppear {
+                // Fetch previous workout data when the set row appears
+                if let exerciseObj = set.value(forKey: "workoutExercise") as? NSManagedObject,
+                   let exercise = exerciseObj.value(forKey: "exercise") as? NSManagedObject {
+                    let setNum = set.value(forKey: "setNumber") as? Int16 ?? 0
+                    print("DEBUG: Fetching previous data for exercise: \(exercise.value(forKey: "name") ?? "unknown"), set: \(setNum)")
+                    previousSetData = workoutManager.getLastWorkoutSetData(for: exercise, setNumber: setNum)
+                    print("DEBUG: Previous data: \(String(describing: previousSetData))")
+                }
+            }
             
             if showRestButton && isSetComplete {
                 Button {

@@ -136,15 +136,20 @@ struct TemplatesView: View {
     private func refreshTemplates() {
         // Force refresh templates
         print("DEBUG: Refreshing templates manually")
-        workoutManager.templates = [] // Force clearing the cache
         
-        // Refresh templates using fetchTemplatesFromStore directly
+        // Avoid direct assignment during view refresh cycle
         DispatchQueue.main.async {
-            workoutManager.refreshTemplates()
+            // First clear the cache
+            self.workoutManager.templates = [] 
             
-            // Force UI update by toggling refresh state
-            self.refreshToggle.toggle()
-            print("DEBUG: Templates refreshed, new count: \(self.workoutManager.templateCount)")
+            // Then request a refresh
+            self.workoutManager.refreshTemplates()
+            
+            // Force UI update by toggling refresh state after a short delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                self.refreshToggle.toggle()
+                print("DEBUG: Templates refreshed, new count: \(self.workoutManager.templateCount)")
+            }
         }
     }
     
@@ -221,10 +226,11 @@ struct TemplatesView: View {
     
     var contentView: some View {
         // Access these to force refresh when they change
-        let _ = (workoutManager.templateCount, refreshToggle)
+        let _ = refreshToggle // Remove direct workoutManager.templateCount dependency 
         print("DEBUG: Refreshing templates view with count: \(workoutManager.templateCount)")
         
-        let templates = workoutManager.fetchAllTemplates()
+        // Fetch templates only once per view update
+        let templates = workoutManager.templates.isEmpty ? workoutManager.fetchAllTemplates() : workoutManager.templates
         
         return Group {
             if templates.isEmpty {

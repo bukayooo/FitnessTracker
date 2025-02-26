@@ -410,6 +410,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"FitnessTracker/Preview Content\"";
+				DEVELOPMENT_TEAM = 9YYZ7P7Y9Q;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = FitnessTracker/Info.plist;
