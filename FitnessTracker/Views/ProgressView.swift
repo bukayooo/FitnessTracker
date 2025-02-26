@@ -17,7 +17,7 @@ struct IdentifiableString: Identifiable {
 
 struct ProgressTabView: View {
     @Environment(\.managedObjectContext) private var viewContext
-    @ObservedObject var workoutManager: WorkoutManager
+    @EnvironmentObject var workoutManager: WorkoutManager
     
     @State private var selectedWorkout: IdentifiableManagedObject?
     @State private var selectedExercise: IdentifiableString?
@@ -37,12 +37,10 @@ struct ProgressTabView: View {
                     // Progress sections
                     List {
                         WorkoutHistorySection(
-                            workoutManager: workoutManager,
                             selectedWorkout: $selectedWorkout
                         )
                         
                         ExerciseProgressSection(
-                            workoutManager: workoutManager,
                             selectedExercise: $selectedExercise
                         )
                     }
@@ -56,8 +54,7 @@ struct ProgressTabView: View {
             }
             .sheet(item: $selectedExercise) { identifiableExercise in
                 ExerciseProgressDetailView(
-                    exerciseName: identifiableExercise.value,
-                    workoutManager: workoutManager
+                    exerciseName: identifiableExercise.value
                 )
             }
         }
@@ -66,7 +63,7 @@ struct ProgressTabView: View {
 
 // MARK: - Workout History Section
 struct WorkoutHistorySection: View {
-    @ObservedObject var workoutManager: WorkoutManager
+    @EnvironmentObject var workoutManager: WorkoutManager
     @Binding var selectedWorkout: IdentifiableManagedObject?
     
     var body: some View {
@@ -79,7 +76,7 @@ struct WorkoutHistorySection: View {
                     }
             }
             
-            NavigationLink(destination: AllWorkoutsView(workoutManager: workoutManager)) {
+            NavigationLink(destination: AllWorkoutsView()) {
                 Text("See All Workouts")
                     .font(.subheadline)
                     .foregroundColor(.blue)
@@ -90,47 +87,28 @@ struct WorkoutHistorySection: View {
 
 // MARK: - Exercise Progress Section
 struct ExerciseProgressSection: View {
-    @ObservedObject var workoutManager: WorkoutManager
+    @EnvironmentObject var workoutManager: WorkoutManager
     @Binding var selectedExercise: IdentifiableString?
     @State private var allExercises: [String] = []
     
     var body: some View {
         Section(header: Text("Exercise Progress")) {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 16) {
-                    ForEach(getUniqueExerciseNames(), id: \.self) { exerciseName in
-                        ExerciseChartPreview(
-                            exerciseName: exerciseName,
-                            workoutManager: workoutManager
-                        )
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            selectedExercise = IdentifiableString(value: exerciseName)
-                        }
-                    }
-                }
-                .padding(.horizontal)
-                .padding(.vertical, 8)
-            }
-            .frame(height: 200)
-        }
-    }
-    
-    private func getUniqueExerciseNames() -> [String] {
-        // Get all unique exercise names from workout history
-        var uniqueNames = Set<String>()
-        
-        for workout in workoutManager.fetchAllWorkouts() {
-            if let exercises = workout.value(forKey: "exercises") as? NSSet {
-                for case let exercise as NSManagedObject in exercises {
-                    if let name = exercise.value(forKey: "name") as? String {
-                        uniqueNames.insert(name)
+            VStack(spacing: 16) {
+                ForEach(allExercises, id: \.self) { exerciseName in
+                    ExerciseChartPreview(
+                        exerciseName: exerciseName
+                    )
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        selectedExercise = IdentifiableString(value: exerciseName)
                     }
                 }
             }
+            .padding(.vertical, 8)
         }
-        
-        return Array(uniqueNames).sorted()
+        .onAppear {
+            allExercises = workoutManager.fetchUniqueExerciseNames()
+        }
     }
 }
 
@@ -204,7 +182,7 @@ struct WorkoutHistoryRow: View {
 // MARK: - Exercise Chart Preview
 struct ExerciseChartPreview: View {
     let exerciseName: String
-    let workoutManager: WorkoutManager
+    @EnvironmentObject var workoutManager: WorkoutManager
     @State private var weightData: [(date: Date, weight: Double)] = []
     
     var body: some View {
@@ -241,7 +219,7 @@ struct ExerciseChartPreview: View {
                 }
             }
         }
-        .frame(width: 200)
+        .frame(maxWidth: .infinity)
         .padding()
         .background(Color(.secondarySystemGroupedBackground))
         .cornerRadius(12)
@@ -294,7 +272,7 @@ struct ExerciseChartPreview: View {
 
 // MARK: - All Workouts View
 struct AllWorkoutsView: View {
-    @ObservedObject var workoutManager: WorkoutManager
+    @EnvironmentObject var workoutManager: WorkoutManager
     @State private var selectedWorkout: IdentifiableManagedObject?
     @State private var searchText = ""
     
@@ -333,6 +311,7 @@ struct AllWorkoutsView: View {
 
 // MARK: - Workout Detail View
 struct WorkoutDetailView: View {
+    @Environment(\.dismiss) private var dismiss
     let workout: NSManagedObject
     
     private var templateName: String {
@@ -431,7 +410,7 @@ struct WorkoutDetailView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Done") {
-                        // No action needed, sheet will dismiss
+                        dismiss()
                     }
                 }
             }
@@ -442,119 +421,108 @@ struct WorkoutDetailView: View {
 // MARK: - Exercise Progress Detail View
 struct ExerciseProgressDetailView: View {
     let exerciseName: String
-    let workoutManager: WorkoutManager
+    @EnvironmentObject var workoutManager: WorkoutManager
+    @Environment(\.dismiss) private var dismiss
     
-    @State private var timeRange: TimeRange = .allTime
     @State private var weightData: [(date: Date, weight: Double)] = []
+    @State private var selectedTimeRange: TimeRange = .allTime
     
     enum TimeRange: String, CaseIterable, Identifiable {
-        case oneMonth = "1 Month"
-        case threeMonths = "3 Months"
+        case week = "Week"
+        case month = "Month"
         case sixMonths = "6 Months"
-        case oneYear = "1 Year"
         case allTime = "All Time"
         
         var id: String { self.rawValue }
-        
-        var daysBack: Int? {
-            switch self {
-            case .oneMonth: return 30
-            case .threeMonths: return 90
-            case .sixMonths: return 180
-            case .oneYear: return 365
-            case .allTime: return nil
-            }
-        }
     }
     
     var body: some View {
         NavigationStack {
-            VStack(spacing: 20) {
-                // Time range picker
-                Picker("Time Range", selection: $timeRange) {
-                    ForEach(TimeRange.allCases) { range in
-                        Text(range.rawValue).tag(range)
-                    }
-                }
-                .pickerStyle(SegmentedPickerStyle())
-                .padding(.horizontal)
-                
-                // Chart
+            VStack {
                 if weightData.isEmpty {
-                    Text("No data available for this exercise")
-                        .foregroundColor(.secondary)
-                        .frame(maxHeight: .infinity)
+                    ContentUnavailableView(
+                        "No Data",
+                        systemImage: "chart.line.uptrend.xyaxis",
+                        description: Text("Complete more workouts with this exercise to see progress")
+                    )
                 } else {
-                    VStack(alignment: .leading) {
-                        Text("Maximum Weight Progression")
-                            .font(.headline)
-                            .padding(.horizontal)
-                        
-                        Chart {
-                            ForEach(weightData, id: \.date) { dataPoint in
-                                LineMark(
-                                    x: .value("Date", dataPoint.date),
-                                    y: .value("Weight", dataPoint.weight)
-                                )
-                                .foregroundStyle(.blue)
-                                
-                                PointMark(
-                                    x: .value("Date", dataPoint.date),
-                                    y: .value("Weight", dataPoint.weight)
-                                )
-                                .foregroundStyle(.blue)
-                            }
+                    // Time range picker
+                    Picker("Time Range", selection: $selectedTimeRange) {
+                        ForEach(TimeRange.allCases) { range in
+                            Text(range.rawValue).tag(range)
                         }
-                        .frame(height: 300)
-                        .padding()
-                        .chartYScale(domain: .automatic(includesZero: false))
+                    }
+                    .pickerStyle(SegmentedPickerStyle())
+                    .padding(.horizontal)
+                    .onChange(of: selectedTimeRange) { oldValue, newValue in
+                        loadChartData()
                     }
                     
-                    // Stats
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Statistics")
-                            .font(.headline)
-                        
-                        HStack {
-                            StatCard(
-                                title: "Current Max",
-                                value: String(format: "%.1f", weightData.last?.weight ?? 0)
+                    // Chart
+                    Chart {
+                        ForEach(weightData, id: \.date) { dataPoint in
+                            LineMark(
+                                x: .value("Date", dataPoint.date),
+                                y: .value("Weight", dataPoint.weight)
                             )
+                            .foregroundStyle(.blue)
                             
-                            StatCard(
-                                title: "Best",
-                                value: String(format: "%.1f", weightData.max(by: { $0.weight < $1.weight })?.weight ?? 0)
+                            PointMark(
+                                x: .value("Date", dataPoint.date),
+                                y: .value("Weight", dataPoint.weight)
                             )
-                        }
-                        
-                        HStack {
-                            StatCard(
-                                title: "Progress",
-                                value: calculateProgressPercentage()
-                            )
-                            
-                            StatCard(
-                                title: "Workouts",
-                                value: "\(weightData.count)"
-                            )
+                            .annotation(position: .top) {
+                                Text("\(Int(dataPoint.weight))")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
+                            .foregroundStyle(.blue)
                         }
                     }
+                    .frame(height: 300)
                     .padding()
+                    .chartYScale(domain: .automatic(includesZero: false))
+                    .chartXAxis {
+                        AxisMarks { value in
+                            if let date = value.as(Date.self) {
+                                AxisValueLabel {
+                                    switch selectedTimeRange {
+                                    case .week:
+                                        Text(date, format: .dateTime.weekday(.abbreviated))
+                                    case .month:
+                                        Text(date, format: .dateTime.day())
+                                    case .sixMonths:
+                                        Text(date, format: .dateTime.month(.abbreviated))
+                                    case .allTime:
+                                        Text(date, format: .dateTime.month(.narrow))
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    .chartYAxis {
+                        AxisMarks { value in
+                            if let weight = value.as(Double.self) {
+                                AxisValueLabel {
+                                    Text("\(Int(weight))")
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Stats view
+                    ExerciseStatsView(weightData: weightData)
+                        .padding()
                 }
-                
-                Spacer()
             }
             .navigationTitle(exerciseName)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Done") {
-                        // No action needed, sheet will dismiss
+                        dismiss()
                     }
                 }
-            }
-            .onChange(of: timeRange) { oldValue, newValue in
-                loadChartData()
             }
             .onAppear {
                 loadChartData()
@@ -563,88 +531,221 @@ struct ExerciseProgressDetailView: View {
     }
     
     private func loadChartData() {
-        // Filter workouts by exercise name
-        let workouts = workoutManager.fetchWorkoutsContainingExercise(named: exerciseName)
+        // Get cutoff date based on selected time range
+        let calendar = Calendar.current
+        let now = Date()
         
-        var dataPoints: [(date: Date, weight: Double)] = []
+        let cutoffDate: Date? = {
+            switch selectedTimeRange {
+            case .week:
+                return calendar.date(byAdding: .day, value: -7, to: now)
+            case .month:
+                return calendar.date(byAdding: .month, value: -1, to: now)
+            case .sixMonths:
+                return calendar.date(byAdding: .month, value: -6, to: now)
+            case .allTime:
+                return nil
+            }
+        }()
         
-        for workout in workouts {
-            guard let date = workout.value(forKey: "date") as? Date,
-                  let exercises = workout.value(forKey: "exercises") as? NSSet else {
+        var data: [(date: Date, weight: Double)] = []
+        
+        for workout in workoutManager.fetchAllWorkouts() {
+            guard let workoutDate = workout.value(forKey: "date") as? Date else { continue }
+            
+            // Skip workouts before cutoff date
+            if let cutoff = cutoffDate, workoutDate < cutoff {
                 continue
             }
             
-            // Filter by time range
-            if let daysBack = timeRange.daysBack {
-                let cutoffDate = Calendar.current.date(byAdding: .day, value: -daysBack, to: Date())!
-                if date < cutoffDate {
-                    continue
-                }
-            }
-            
-            // Find the maximum weight for this exercise
-            var maxWeight = 0.0
-            
-            for case let workoutExercise as NSManagedObject in exercises {
-                guard let name = workoutExercise.value(forKey: "name") as? String,
-                      name == exerciseName,
-                      let sets = workoutExercise.value(forKey: "sets") as? NSSet else {
-                    continue
-                }
-                
-                for case let set as NSManagedObject in sets {
-                    let weight = set.value(forKey: "weight") as? Double ?? 0.0
-                    let reps = set.value(forKey: "reps") as? Int16 ?? 0
+            if let exercises = workout.value(forKey: "exercises") as? NSSet {
+                for case let exercise as NSManagedObject in exercises {
+                    guard let name = exercise.value(forKey: "name") as? String,
+                          name == exerciseName else { continue }
                     
-                    if reps > 0 && weight > maxWeight {
-                        maxWeight = weight
+                    var maxWeightForExercise = 0.0
+                    
+                    if let sets = exercise.value(forKey: "sets") as? NSSet {
+                        for case let setObj as NSManagedObject in sets {
+                            if let weight = setObj.value(forKey: "weight") as? Double,
+                               let reps = setObj.value(forKey: "reps") as? Int16,
+                               reps > 0 && weight > maxWeightForExercise {
+                                maxWeightForExercise = weight
+                            }
+                        }
+                    }
+                    
+                    if maxWeightForExercise > 0 {
+                        // Normalize the date based on selected time range to group data better
+                        let normalizedDate: Date
+                        if selectedTimeRange == .allTime || selectedTimeRange == .sixMonths {
+                            // For longer time ranges, group by day of month
+                            normalizedDate = calendar.startOfDay(for: workoutDate)
+                        } else {
+                            // For shorter time ranges, use exact date and time
+                            normalizedDate = workoutDate
+                        }
+                        
+                        data.append((date: normalizedDate, weight: maxWeightForExercise))
                     }
                 }
             }
-            
-            if maxWeight > 0 {
-                dataPoints.append((date: date, weight: maxWeight))
-            }
         }
         
-        // Sort by date
-        weightData = dataPoints.sorted { $0.date < $1.date }
-    }
-    
-    private func calculateProgressPercentage() -> String {
-        guard weightData.count >= 2 else {
-            return "N/A"
+        // Sort by date and remove duplicates (keep highest weight for each date)
+        let groupedByDate = Dictionary(grouping: data, by: { $0.date })
+        let maxWeightByDate = groupedByDate.mapValues { dateWeights in
+            dateWeights.max(by: { $0.weight < $1.weight })!
         }
         
-        let firstWeight = weightData.first?.weight ?? 0
-        let lastWeight = weightData.last?.weight ?? 0
-        
-        if firstWeight == 0 {
-            return "N/A"
-        }
-        
-        let percentage = ((lastWeight - firstWeight) / firstWeight) * 100
-        return String(format: "%.1f%%", percentage)
+        weightData = Array(maxWeightByDate.values).sorted(by: { $0.date < $1.date })
     }
 }
 
+// MARK: - Exercise Stats View
+struct ExerciseStatsView: View {
+    let weightData: [(date: Date, weight: Double)]
+    
+    private var maxWeight: Double {
+        weightData.max(by: { $0.weight < $1.weight })?.weight ?? 0
+    }
+    
+    private var averageWeight: Double {
+        guard !weightData.isEmpty else { return 0 }
+        let sum = weightData.reduce(0) { $0 + $1.weight }
+        return sum / Double(weightData.count)
+    }
+    
+    private var progress: Double {
+        guard weightData.count >= 2 else { return 0 }
+        let first = weightData.first!.weight
+        let last = weightData.last!.weight
+        return last - first
+    }
+    
+    private var progressPercentage: Double {
+        guard weightData.count >= 2 else { return 0 }
+        let first = weightData.first!.weight
+        guard first > 0 else { return 0 }
+        return (progress / first) * 100
+    }
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            Text("Stats")
+                .font(.headline)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
+                StatCard(title: "Max Weight", value: String(format: "%.1f", maxWeight))
+                StatCard(title: "Average Weight", value: String(format: "%.1f", averageWeight))
+                
+                if weightData.count >= 2 {
+                    StatCard(
+                        title: "Progress",
+                        value: String(format: "%+.1f", progress),
+                        detail: String(format: "%+.1f%%", progressPercentage)
+                    )
+                    
+                    StatCard(
+                        title: "Timespan",
+                        value: formatTimespan(
+                            from: weightData.first!.date,
+                            to: weightData.last!.date
+                        )
+                    )
+                }
+            }
+        }
+    }
+    
+    private func formatTimespan(from startDate: Date, to endDate: Date) -> String {
+        let components = Calendar.current.dateComponents([.day], from: startDate, to: endDate)
+        guard let days = components.day else { return "N/A" }
+        
+        if days < 30 {
+            return "\(days) days"
+        } else if days < 365 {
+            let months = days / 30
+            return "\(months) months"
+        } else {
+            let years = Double(days) / 365.0
+            return String(format: "%.1f years", years)
+        }
+    }
+}
+
+// MARK: - Stat Card
 struct StatCard: View {
     let title: String
     let value: String
+    var detail: String? = nil
     
     var body: some View {
-        VStack {
+        VStack(alignment: .leading, spacing: 4) {
             Text(title)
                 .font(.subheadline)
                 .foregroundColor(.secondary)
             
             Text(value)
                 .font(.title2)
-                .fontWeight(.bold)
+                .bold()
+            
+            if let detail = detail {
+                Text(detail)
+                    .font(.caption)
+                    .foregroundColor(detail.hasPrefix("+") ? .green : .red)
+            }
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .background(Color(.secondarySystemGroupedBackground))
-        .cornerRadius(10)
+        .cornerRadius(12)
     }
-} 
+}
+
+struct ProgressView: View {
+    @EnvironmentObject var workoutManager: WorkoutManager
+    @State private var exerciseNames: [String] = []
+    @State private var selectedExerciseName: String?
+    @State private var showingExerciseDetail = false
+    
+    var body: some View {
+        NavigationView {
+            VStack {
+                if exerciseNames.isEmpty {
+                    ContentUnavailableView(
+                        "No Exercise Data",
+                        systemImage: "figure.strengthtraining.traditional",
+                        description: Text("Complete workouts to see your progress")
+                    )
+                } else {
+                    List {
+                        ForEach(exerciseNames, id: \.self) { name in
+                            Button(action: {
+                                selectedExerciseName = name
+                                showingExerciseDetail = true
+                            }) {
+                                HStack {
+                                    Text(name)
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .foregroundColor(.gray)
+                                }
+                            }
+                        }
+                    }
+                    .sheet(isPresented: $showingExerciseDetail) {
+                        if let exerciseName = selectedExerciseName {
+                            ExerciseProgressDetailView(exerciseName: exerciseName)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Exercise Progress")
+            .onAppear {
+                exerciseNames = workoutManager.fetchUniqueExerciseNames()
+            }
+        }
+    }
+}

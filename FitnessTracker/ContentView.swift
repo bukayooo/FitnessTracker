@@ -34,8 +34,9 @@ struct ContentView: View {
                     Label("Workout", systemImage: "dumbbell")
                 }
             
-            ProgressTabView(workoutManager: workoutManager)
+            ProgressTabView()
                 .environment(\.managedObjectContext, viewContext)
+                .environmentObject(workoutManager)
                 .tabItem {
                     Label("Progress", systemImage: "chart.line.uptrend.xyaxis")
                 }
@@ -54,9 +55,78 @@ struct WorkoutTabView: View {
     @State private var showingBlankWorkout = false
     @State private var blankWorkout: NSManagedObject?
     
+    // Track loading state
+    @State private var isLoading = false
+    @State private var errorMessage: String?
+    @State private var showingError = false
+    
     var body: some View {
         NavigationStack {
-            VStack {
+            VStack(spacing: 16) {
+                // Error alert display
+                if let error = errorMessage, showingError {
+                    Text(error)
+                        .foregroundColor(.white)
+                        .padding()
+                        .background(Color.red)
+                        .cornerRadius(8)
+                        .padding(.horizontal)
+                        .onAppear {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                                showingError = false
+                            }
+                        }
+                }
+                
+                // Start Workout Button row - template selector and blank workout options
+                HStack(spacing: 12) {
+                    // Template workout button
+                    Button {
+                        showingTemplateSelector = true
+                    } label: {
+                        HStack {
+                            Image(systemName: "list.bullet")
+                            Text("From Template")
+                                .fontWeight(.semibold)
+                                .font(.system(size: 14))
+                        }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 56)
+                        .padding(.horizontal)
+                        .background(Color.blue)
+                        .foregroundColor(.white)
+                        .cornerRadius(10)
+                    }
+                    .disabled(isLoading)
+                    
+                    // Blank workout button
+                    Button {
+                        print("DEBUG: Creating blank workout")
+                        createBlankWorkout()
+                    } label: {
+                        HStack {
+                            if isLoading {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            } else {
+                                Image(systemName: "plus")
+                            }
+                            Text("Blank Workout")
+                                .fontWeight(.semibold)
+                                .font(.system(size: 14))
+                        }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 56)
+                        .padding(.horizontal)
+                        .background(isLoading ? Color.gray : Color.green)
+                        .foregroundColor(.white)
+                        .cornerRadius(10)
+                    }
+                    .disabled(isLoading)
+                }
+                .padding(.horizontal)
+                .padding(.top)
+                
                 if workoutManager.fetchAllTemplates().isEmpty {
                     EmptyStateView(
                         systemImage: "dumbbell",
@@ -64,66 +134,29 @@ struct WorkoutTabView: View {
                         message: "Create a workout template in the Templates tab to start tracking your workouts."
                     )
                 } else {
-                    VStack(alignment: .leading, spacing: 16) {
-                        // Start Workout Button row - template selector and blank workout options
-                        HStack(spacing: 12) {
-                            // Template workout button
-                            Button {
-                                showingTemplateSelector = true
-                            } label: {
-                                HStack {
-                                    Image(systemName: "list.bullet")
-                                    Text("From Template")
-                                        .fontWeight(.semibold)
-                                }
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Color.blue)
-                                .foregroundColor(.white)
-                                .cornerRadius(10)
-                            }
-                            
-                            // Blank workout button
-                            Button {
-                                print("DEBUG: Creating blank workout")
-                                createBlankWorkout()
-                            } label: {
-                                HStack {
-                                    Image(systemName: "plus")
-                                    Text("Blank Workout")
-                                        .fontWeight(.semibold)
-                                }
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Color.green)
-                                .foregroundColor(.white)
-                                .cornerRadius(10)
-                            }
-                        }
-                        .padding(.horizontal)
-                        
-                        // Recent Templates
+                    // Recent Templates
+                    VStack(alignment: .leading) {
                         Text("Recent Templates")
                             .font(.headline)
                             .padding(.horizontal)
                         
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 16) {
-                                ForEach(workoutManager.fetchAllTemplates(), id: \.self) { template in
-                                    TemplateCard(template: template)
-                                        .onTapGesture {
-                                            selectedTemplate = template.asIdentifiable
-                                            showingTemplateSelector = false
-                                        }
-                                }
+                        // Replace horizontal scroll with a 2-column grid
+                        LazyVGrid(columns: [
+                            GridItem(.flexible(), spacing: 16),
+                            GridItem(.flexible(), spacing: 16)
+                        ], spacing: 16) {
+                            ForEach(workoutManager.fetchAllTemplates(), id: \.self) { template in
+                                TemplateCard(template: template)
+                                    .onTapGesture {
+                                        selectedTemplate = template.asIdentifiable
+                                    }
                             }
-                            .padding(.horizontal)
                         }
-                        
-                        Spacer()
+                        .padding(.horizontal)
                     }
-                    .padding(.top)
                 }
+                
+                Spacer()
             }
             .navigationTitle("Workout")
             .sheet(isPresented: $showingTemplateSelector) {
@@ -136,6 +169,10 @@ struct WorkoutTabView: View {
                     workoutManager: self.workoutManager
                 )
                 .environment(\.managedObjectContext, viewContext)
+                .onDisappear {
+                    // Reset selectedTemplate to prevent reuse of stale data
+                    selectedTemplate = nil
+                }
             }
             .sheet(isPresented: $showingBlankWorkout) {
                 if let workout = blankWorkout {
@@ -144,19 +181,47 @@ struct WorkoutTabView: View {
                         workoutManager: self.workoutManager
                     )
                     .environment(\.managedObjectContext, viewContext)
+                    .onDisappear {
+                        // Reset blankWorkout to prevent reuse of stale data
+                        blankWorkout = nil
+                        showingBlankWorkout = false
+                    }
                 }
             }
         }
     }
     
     private func createBlankWorkout() {
-        // Use the WorkoutManager to create a blank workout
-        print("DEBUG: Creating blank workout")
-        let workout = workoutManager.createBlankWorkout()
+        print("DEBUG: Creating blank workout in WorkoutTabView")
         
-        // Set the blank workout and show it
-        self.blankWorkout = workout
-        self.showingBlankWorkout = true
+        // Set loading state
+        isLoading = true
+        errorMessage = nil
+        showingError = false
+        
+        // Make sure we're creating fresh instances
+        blankWorkout = nil
+        showingBlankWorkout = false
+        
+        // Create the new workout in a background thread
+        DispatchQueue.global(qos: .userInitiated).async {
+            // Create workout on background thread
+            let workout = self.workoutManager.createBlankWorkout()
+            
+            // Switch back to main thread for UI updates
+            DispatchQueue.main.async {
+                print("DEBUG: Blank workout created with ID: \(workout.objectID)")
+                
+                // Set the blank workout
+                self.blankWorkout = workout
+                
+                // Delay slightly to ensure the context has time to fully process
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    self.isLoading = false
+                    self.showingBlankWorkout = true
+                }
+            }
+        }
     }
 }
 
@@ -184,7 +249,8 @@ struct TemplateCard: View {
                 .font(.subheadline)
                 .foregroundColor(.secondary)
         }
-        .frame(width: 150, height: 100)
+        .frame(maxWidth: .infinity)
+        .frame(height: 100)
         .padding()
         .background(Color(.secondarySystemBackground))
         .cornerRadius(12)
@@ -266,6 +332,11 @@ extension NSManagedObject {
     // Helper to convert to identifiable version
     var asIdentifiable: IdentifiableManagedObject {
         IdentifiableManagedObject(object: self)
+    }
+    
+    // Helper to check if an object is valid
+    var isValid: Bool {
+        return !isDeleted && managedObjectContext != nil
     }
 }
 
