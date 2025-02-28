@@ -515,6 +515,7 @@ struct TemplateDetailView: View {
     @State private var templateName: String
     @State private var exercises: [TemplateExerciseItem] = []
     @State private var warmups: [String] = []
+    @State private var warmupDurations: [Int] = []
     @State private var showingAddExercise = false
     @State private var showingAddWarmup = false
     @State private var newWarmupName: String = ""
@@ -541,18 +542,15 @@ struct TemplateDetailView: View {
                     return nil
                 }
                 
-                // Get the sets count
                 let sets = exercise.value(forKey: "sets") as? Int16 ?? 3
-                
                 return TemplateExerciseItem(name: name, order: Int(order), sets: Int(sets))
             }
             .sorted { $0.order < $1.order }
-            
             _exercises = State(initialValue: items)
         }
         
-        // Load any existing warmups
         _warmups = State(initialValue: [])
+        _warmupDurations = State(initialValue: [])
     }
     
     var body: some View {
@@ -566,7 +564,7 @@ struct TemplateDetailView: View {
                     }
                 }
                 
-                // Add Warmups Section
+                // Warmups Section
                 Section(header: Text("Warmups")) {
                     if warmups.isEmpty {
                         Text("No warmups added")
@@ -576,11 +574,25 @@ struct TemplateDetailView: View {
                         ForEach(warmups.indices, id: \.self) { index in
                             HStack {
                                 Text(warmups[index])
-                                
+                                    .frame(width: 125, alignment: .leading)
+                                    .lineLimit(2)
+                                    .truncationMode(.tail)
                                 Spacer()
-                                
-                                Text("15 sec")
-                                    .foregroundColor(.secondary)
+                                if isEditing {
+                                    HStack(spacing: 8) {
+                                        Stepper("", value: $warmupDurations[index], in: 5...60, step: 5)
+                                            .labelsHidden()
+                                            .onChange(of: warmupDurations[index]) { newValue in
+                                                workoutManager.updateWarmupDuration(for: template, at: index, duration: newValue)
+                                                print("DEBUG: Updated warmup duration at index \(index) to \(newValue) sec")
+                                            }
+                                        Text("\(warmupDurations[index]) sec")
+                                            .foregroundColor(.secondary)
+                                    }
+                                } else {
+                                    Text("\(warmupDurations[index]) sec")
+                                        .foregroundColor(.secondary)
+                                }
                             }
                         }
                         .onDelete(perform: isEditing ? deleteWarmup : nil)
@@ -600,7 +612,7 @@ struct TemplateDetailView: View {
                             Button("Cancel", role: .cancel) { }
                             Button("Add") {
                                 if !newWarmupName.isEmpty {
-                                    workoutManager.addWarmup(to: template, name: newWarmupName)
+                                    workoutManager.addWarmup(to: template, name: newWarmupName, duration: 15)
                                     loadWarmups()
                                     newWarmupName = ""
                                 }
@@ -611,6 +623,7 @@ struct TemplateDetailView: View {
                     }
                 }
                 
+                // Exercises Section
                 Section(header: Text("Exercises")) {
                     if exercises.isEmpty {
                         Text("No exercises added")
@@ -620,14 +633,24 @@ struct TemplateDetailView: View {
                         ForEach(exercises.indices, id: \.self) { index in
                             HStack {
                                 Text(exercises[index].name)
-                                
+                                    .frame(width: 125, alignment: .leading)
+                                    .lineLimit(2)
+                                    .truncationMode(.tail)
                                 Spacer()
-                                
                                 if isEditing {
-                                    Stepper("Sets: \(exercises[index].sets)", value: $exercises[index].sets, in: 1...10)
-                                        .labelsHidden()
-                                    Text("Sets: \(exercises[index].sets)")
-                                        .foregroundColor(.secondary)
+                                    HStack(spacing: 8) {
+                                        Stepper("", value: $exercises[index].sets, in: 1...10)
+                                            .labelsHidden()
+                                            .onChange(of: exercises[index].sets) { newValue in
+                                                if let exerciseObj = (template.value(forKey: "exercises") as? NSSet)?.allObjects
+                                                    .compactMap({ $0 as? NSManagedObject })
+                                                    .first(where: { $0.value(forKey: "order") as? Int16 == Int16(exercises[index].order) }) {
+                                                    workoutManager.updateExercise(exerciseObj, name: exercises[index].name, sets: Int16(newValue))
+                                                }
+                                            }
+                                        Text("Sets: \(exercises[index].sets)")
+                                            .foregroundColor(.secondary)
+                                    }
                                 } else {
                                     Text("Sets: \(exercises[index].sets)")
                                         .foregroundColor(.secondary)
@@ -653,39 +676,19 @@ struct TemplateDetailView: View {
                 if !isEditing {
                     Section {
                         Button {
-                            // Start Workout with this template
                             print("DEBUG: Starting workout from template: \(templateName)")
-                            
-                            // Show loading indicator to user
-                            let loadingAlert = UIAlertController(
-                                title: "Starting Workout", 
-                                message: "Please wait...", 
-                                preferredStyle: .alert
-                            )
-                            
-                            // Get key window using the newer API
-                            let windowScene = UIApplication.shared.connectedScenes
-                                .first(where: { $0 is UIWindowScene }) as? UIWindowScene
+                            let loadingAlert = UIAlertController(title: "Starting Workout", message: "Please wait...", preferredStyle: .alert)
+                            let windowScene = UIApplication.shared.connectedScenes.first(where: { $0 is UIWindowScene }) as? UIWindowScene
                             let window = windowScene?.windows.first { $0.isKeyWindow }
                             window?.rootViewController?.present(loadingAlert, animated: true)
                             
-                            // Create in background to avoid blocking UI
                             DispatchQueue.global(qos: .userInitiated).async {
-                                // Create a workout from this template
                                 if let workout = workoutManager.startWorkout(from: template) {
                                     print("DEBUG: Created new workout with ID: \(workout.objectID)")
-                                    
-                                    // Dismiss the loading alert
                                     DispatchQueue.main.async {
                                         loadingAlert.dismiss(animated: true)
-                                        
-                                        // Dismiss this view
-                                        print("DEBUG: Dismissing template view...")
                                         dismiss()
-                                        
-                                        // Delay posting notification slightly
                                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                            // Post notification to start the workout
                                             NotificationCenter.default.post(
                                                 name: Notification.Name("StartWorkoutFromTemplate"),
                                                 object: nil,
@@ -695,16 +698,9 @@ struct TemplateDetailView: View {
                                         }
                                     }
                                 } else {
-                                    // Handle the case where workout creation failed
                                     DispatchQueue.main.async {
                                         loadingAlert.dismiss(animated: true)
-                                        
-                                        // Show error message
-                                        let errorAlert = UIAlertController(
-                                            title: "Error",
-                                            message: "Failed to create workout from template",
-                                            preferredStyle: .alert
-                                        )
+                                        let errorAlert = UIAlertController(title: "Error", message: "Failed to create workout from template", preferredStyle: .alert)
                                         errorAlert.addAction(UIAlertAction(title: "OK", style: .default))
                                         window?.rootViewController?.present(errorAlert, animated: true)
                                     }
@@ -728,13 +724,10 @@ struct TemplateDetailView: View {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(isEditing ? "Cancel" : "Close") {
                         if isEditing {
-                            // Reset changes
                             isEditing = false
-                            
-                            // Reload original values
                             templateName = template.value(forKey: "name") as? String ?? "Untitled Template"
-                            
                             loadExercises()
+                            loadWarmups()
                         } else {
                             dismiss()
                         }
@@ -744,7 +737,6 @@ struct TemplateDetailView: View {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(isEditing ? "Save" : "Edit") {
                         if isEditing {
-                            // Save changes
                             saveChanges()
                             isEditing = false
                         } else {
@@ -766,10 +758,7 @@ struct TemplateDetailView: View {
             }
             .sheet(isPresented: $showingAddExercise) {
                 AddExerciseView { exerciseName in
-                    let newExercise = TemplateExerciseItem(
-                        name: exerciseName,
-                        order: exercises.count
-                    )
+                    let newExercise = TemplateExerciseItem(name: exerciseName, order: exercises.count)
                     exercises.append(newExercise)
                 }
             }
@@ -778,6 +767,15 @@ struct TemplateDetailView: View {
     
     private func loadWarmups() {
         warmups = workoutManager.getWarmups(for: template)
+        warmupDurations = workoutManager.getWarmupDurations(for: template)
+        
+        if warmups.count > warmupDurations.count {
+            let additionalDurations = Array(repeating: 15, count: warmups.count - warmupDurations.count)
+            warmupDurations.append(contentsOf: additionalDurations)
+            for i in (warmupDurations.count - additionalDurations.count)..<warmupDurations.count {
+                workoutManager.updateWarmupDuration(for: template, at: i, duration: warmupDurations[i])
+            }
+        }
     }
     
     private func deleteWarmup(at offsets: IndexSet) {
@@ -795,22 +793,16 @@ struct TemplateDetailView: View {
                       let order = exercise.value(forKey: "order") as? Int16 else {
                     return nil
                 }
-                
-                // Get the sets count
                 let sets = exercise.value(forKey: "sets") as? Int16 ?? 3
-                
                 return TemplateExerciseItem(name: name, order: Int(order), sets: Int(sets))
             }
             .sorted { $0.order < $1.order }
-            
             exercises = items
         }
     }
     
     private func deleteExercise(at offsets: IndexSet) {
         exercises.remove(atOffsets: offsets)
-        
-        // Update order after deletion
         for i in 0..<exercises.count {
             exercises[i].order = i
         }
@@ -818,20 +810,13 @@ struct TemplateDetailView: View {
     
     private func moveExercise(from source: IndexSet, to destination: Int) {
         exercises.move(fromOffsets: source, toOffset: destination)
-        
-        // Update order after moving
         for i in 0..<exercises.count {
             exercises[i].order = i
         }
     }
     
     private func saveChanges() {
-        // Update template name
         template.setValue(templateName, forKey: "name")
-        
-        // Update exercises - handled through existing methods
-        
-        // Save changes to Core Data
         do {
             try viewContext.save()
             print("Template saved successfully")
@@ -839,4 +824,4 @@ struct TemplateDetailView: View {
             print("Error saving template: \(error)")
         }
     }
-} 
+}

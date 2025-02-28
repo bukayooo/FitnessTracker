@@ -24,6 +24,7 @@ struct WorkoutView: View {
     // Warmup states
     @State private var isShowingWarmupTimer = false
     @State private var warmups: [String] = []
+    @State private var warmupDurations: [Int] = []
     
     init(workout: NSManagedObject, workoutManager: WorkoutManager) {
         print("DEBUG: ⭐️ WorkoutView initializing with entity: \(workout.entity.name ?? "unknown")")
@@ -449,14 +450,28 @@ struct WorkoutView: View {
     
     private func loadWarmupsAndStartTimerIfNeeded() {
         if !isTemplateView {
+            print("DEBUG: 🏋️‍♂️ Attempting to load warmups for workout")
             // Only show warmups when starting an actual workout (not when viewing a template)
             if let templateObj = workout.value(forKey: "template") as? NSManagedObject {
+                print("DEBUG: 🏋️‍♂️ Found template object: \(templateObj.objectID)")
+                
                 // Get warmups from the workout's template
                 warmups = workoutManager.getWarmups(for: templateObj)
+                warmupDurations = workoutManager.getWarmupDurations(for: templateObj)
+                
+                print("DEBUG: 🏋️‍♂️ Loaded \(warmups.count) warmups: \(warmups)")
+                print("DEBUG: 🏋️‍♂️ Loaded \(warmupDurations.count) durations: \(warmupDurations)")
+                
+                // Ensure we have durations for each warmup
+                if warmupDurations.count != warmups.count {
+                    print("DEBUG: 🏋️‍♂️ Duration count mismatch! Creating default durations")
+                    warmupDurations = Array(repeating: 15, count: warmups.count)
+                }
                 
                 if !warmups.isEmpty {
-                    // Start warmup timer with loaded warmups
-                    timerManager.startWarmupTimer(warmups: warmups)
+                    print("DEBUG: 🏋️‍♂️ Starting warmup timer with durations: \(warmupDurations)")
+                    // Start warmup timer with loaded warmups and durations
+                    timerManager.startWarmupTimer(warmups: warmups, durations: warmupDurations)
                     isShowingWarmupTimer = true
                     
                     // Listen for when all warmups are completed
@@ -467,8 +482,14 @@ struct WorkoutView: View {
                     ) { _ in
                         isShowingWarmupTimer = false
                     }
+                } else {
+                    print("DEBUG: 🏋️‍♂️ No warmups found, skipping timer")
                 }
+            } else {
+                print("DEBUG: 🏋️‍♂️ No template found for this workout")
             }
+        } else {
+            print("DEBUG: 🏋️‍♂️ In template view mode, skipping warmups")
         }
     }
 }
@@ -550,29 +571,32 @@ struct ExerciseCard: View {
                 }
             } else if !isTemplateView && exercise.entity.name != "Exercise" {
                 VStack(spacing: 10) {
-                    HStack {
+                    HStack(spacing: 0) {
+                        Spacer()
+                            .frame(width: 12)
+                            
                         Text("Set")
                             .font(.caption)
                             .foregroundColor(.secondary)
-                            .frame(width: 40, alignment: .leading)
+                            .frame(width: 55, alignment: .leading)
                         
-                        Text("Previous")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .frame(width: 90, alignment: .leading)
+                        Spacer()
+                            .frame(width: 66)
                         
                         Text("Reps")
                             .font(.caption)
                             .foregroundColor(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .frame(width: 60, alignment: .center)
+                        
+                        Spacer()
+                            .frame(width: 32)
                         
                         Text("Weight")
                             .font(.caption)
                             .foregroundColor(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .frame(width: 60, alignment: .center)
                         
-                        Text("")
-                            .frame(width: 50)
+                        Spacer()
                     }
                     
                     Divider()
@@ -675,20 +699,12 @@ struct SetRow: View {
         VStack(spacing: 6) {
             HStack(spacing: 12) {
                 Text("Set \(setNumber + 1)")
-                    .frame(width: 60, alignment: .leading)
+                    .frame(width: 55, alignment: .leading)
                     .foregroundColor(isActive ? .primary : .secondary)
                 
-                // Show previous data if available
-                if let previousData = previousSetData, 
-                   previousData.reps > 0 || previousData.weight > 0 {
-                    Text("\(previousData.reps) × \(Int(previousData.weight))")
-                        .foregroundColor(.gray.opacity(0.7))
-                        .font(.caption)
-                        .frame(width: 90, alignment: .leading)
-                } else {
-                    Text("")
-                        .frame(width: 90, alignment: .leading)
-                }
+                // Remove the previous data display column but keep the previous data variable for use in text fields
+                Spacer()
+                    .frame(width: 50)
                 
                 ZStack(alignment: .center) {
                     // Use a space instead of "0" as placeholder when there's a previous value

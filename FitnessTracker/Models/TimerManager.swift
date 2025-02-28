@@ -21,11 +21,12 @@ class TimerManager: ObservableObject {
     @Published var isWarmupTimerActive: Bool = false
     @Published var currentWarmupIndex: Int = 0
     @Published var warmups: [String] = []
+    @Published var warmupDurations: [Int] = []
     
     // Default rest timer duration (1:41 = 101 seconds)
     let restDuration: Int = 101
     // Default warmup timer duration (15 seconds)
-    let warmupDuration: Int = 15
+    let defaultWarmupDuration: Int = 15
     
     private var workoutTimer: AnyCancellable?
     private var restTimer: AnyCancellable?
@@ -208,14 +209,28 @@ class TimerManager: ObservableObject {
     }
     
     // MARK: - Warmup Timer Methods
-    func startWarmupTimer(warmups: [String]) {
+    func startWarmupTimer(warmups: [String], durations: [Int] = []) {
         self.warmups = warmups
         if warmups.isEmpty {
+            print("DEBUG: ⏱️ No warmups to start timer with")
             return
         }
         
+        print("DEBUG: ⏱️ Starting warmup timer with \(warmups.count) warmups")
+        print("DEBUG: ⏱️ Provided durations: \(durations)")
+        
+        // Store the durations, or use defaults if none provided
+        if durations.isEmpty || durations.count != warmups.count {
+            print("DEBUG: ⏱️ Using default durations because: isEmpty=\(durations.isEmpty), count mismatch=\(durations.count != warmups.count)")
+            self.warmupDurations = Array(repeating: defaultWarmupDuration, count: warmups.count)
+        } else {
+            print("DEBUG: ⏱️ Using custom durations: \(durations)")
+            self.warmupDurations = durations
+        }
+        
         currentWarmupIndex = 0
-        warmupTimeRemaining = warmupDuration
+        warmupTimeRemaining = self.warmupDurations[0]
+        print("DEBUG: ⏱️ Starting first warmup '\(warmups[0])' with duration: \(warmupTimeRemaining)s")
         isWarmupTimerActive = true
         
         warmupTimer = Timer.publish(every: 1, on: .main, in: .common)
@@ -234,10 +249,12 @@ class TimerManager: ObservableObject {
         currentWarmupIndex += 1
         
         if currentWarmupIndex < warmups.count {
-            // Move to the next warmup
-            warmupTimeRemaining = warmupDuration
+            // Move to the next warmup with its duration
+            warmupTimeRemaining = warmupDurations[currentWarmupIndex]
+            print("DEBUG: ⏱️ Moving to next warmup '\(warmups[currentWarmupIndex])' with duration: \(warmupTimeRemaining)s")
         } else {
             // All warmups are completed
+            print("DEBUG: ⏱️ All warmups completed")
             stopWarmupTimer()
         }
     }
@@ -253,6 +270,7 @@ class TimerManager: ObservableObject {
         NotificationCenter.default.post(name: NSNotification.Name("WarmupTimerComplete"), object: nil)
         
         warmups = []
+        warmupDurations = []
     }
     
     var currentWarmupName: String? {
@@ -286,4 +304,4 @@ class TimerManager: ObservableObject {
         warmupTimer?.cancel()
         appPhaseObserver?.cancel()
     }
-} 
+}

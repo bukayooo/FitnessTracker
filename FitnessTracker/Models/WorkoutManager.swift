@@ -188,14 +188,23 @@ class WorkoutManager: ObservableObject {
     
     // MARK: - Warmup Operations
     
-    func addWarmup(to template: NSManagedObject, name: String) {
+    func addWarmup(to template: NSManagedObject, name: String, duration: Int = 15) {
         // Store warmups in UserDefaults for now until Core Data schema is updated
         let templateID = template.objectID.uriRepresentation().absoluteString
+        
+        // Store warmup names
         var warmupsDict = UserDefaults.standard.dictionary(forKey: "templateWarmups") as? [String: [String]] ?? [:]
         var warmups = warmupsDict[templateID] ?? []
         warmups.append(name)
         warmupsDict[templateID] = warmups
         UserDefaults.standard.set(warmupsDict, forKey: "templateWarmups")
+        
+        // Store warmup durations
+        var warmupDurationsDict = UserDefaults.standard.dictionary(forKey: "templateWarmupDurations") as? [String: [Int]] ?? [:]
+        var durations = warmupDurationsDict[templateID] ?? []
+        durations.append(duration)
+        warmupDurationsDict[templateID] = durations
+        UserDefaults.standard.set(warmupDurationsDict, forKey: "templateWarmupDurations")
     }
     
     func getWarmups(for template: NSManagedObject) -> [String] {
@@ -204,8 +213,70 @@ class WorkoutManager: ObservableObject {
         return warmupsDict[templateID] ?? []
     }
     
+    func getWarmupDurations(for template: NSManagedObject) -> [Int] {
+        let templateID = template.objectID.uriRepresentation().absoluteString
+        let durationsDict = UserDefaults.standard.dictionary(forKey: "templateWarmupDurations") as? [String: [Int]] ?? [:]
+        let durations = durationsDict[templateID] ?? []
+        
+        print("DEBUG: 🔍 Getting warmup durations for template: \(templateID)")
+        print("DEBUG: 🔍 Retrieved durations: \(durations)")
+        
+        // Debug all values in the dictionary
+        print("DEBUG: 🔍 All template durations in UserDefaults:")
+        for (key, value) in durationsDict {
+            print("DEBUG: 🔍   Template: \(key), Durations: \(value)")
+        }
+        
+        return durations
+    }
+    
+    func updateWarmupDuration(for template: NSManagedObject, at index: Int, duration: Int) {
+        let templateID = template.objectID.uriRepresentation().absoluteString
+        print("DEBUG: 📝 Updating warmup duration for template: \(templateID)")
+        print("DEBUG: 📝 Index: \(index), New Duration: \(duration)")
+        
+        var durationsDict = UserDefaults.standard.dictionary(forKey: "templateWarmupDurations") as? [String: [Int]] ?? [:]
+        print("DEBUG: 📝 Current durations dict: \(durationsDict[templateID] ?? [])")
+        
+        var durations = durationsDict[templateID] ?? []
+        
+        // Handle the case where we need to initialize durations
+        let warmups = getWarmups(for: template)
+        
+        // Ensure durations array is properly initialized if needed
+        if durations.isEmpty && !warmups.isEmpty {
+            durations = Array(repeating: 15, count: warmups.count)
+            print("DEBUG: 📝 Initialized durations array for \(warmups.count) warmups")
+        }
+        
+        // Now update the duration at the specified index
+        if index >= 0 && index < warmups.count {
+            // Ensure durations array is large enough
+            while durations.count < warmups.count {
+                durations.append(15)
+            }
+            
+            // Update the duration
+            let oldDuration = index < durations.count ? durations[index] : 15
+            durations[index] = max(5, min(60, duration)) // Limit duration between 5 and 60 seconds
+            print("DEBUG: 📝 Updated duration at index \(index) from \(oldDuration) to \(durations[index])")
+            
+            // Save updated durations
+            durationsDict[templateID] = durations
+            UserDefaults.standard.set(durationsDict, forKey: "templateWarmupDurations")
+            // Force synchronize to ensure data is saved immediately
+            UserDefaults.standard.synchronize()
+            print("DEBUG: 📝 Saved updated durations: \(durations)")
+        } else {
+            // Invalid index: do nothing
+            print("DEBUG: 📝 Invalid index \(index) for warmups array of size \(warmups.count)")
+        }
+    }
+    
     func deleteWarmup(from template: NSManagedObject, at index: Int) {
         let templateID = template.objectID.uriRepresentation().absoluteString
+        
+        // Remove warmup name
         var warmupsDict = UserDefaults.standard.dictionary(forKey: "templateWarmups") as? [String: [String]] ?? [:]
         var warmups = warmupsDict[templateID] ?? []
         
@@ -213,6 +284,16 @@ class WorkoutManager: ObservableObject {
             warmups.remove(at: index)
             warmupsDict[templateID] = warmups
             UserDefaults.standard.set(warmupsDict, forKey: "templateWarmups")
+        }
+        
+        // Remove warmup duration
+        var durationsDict = UserDefaults.standard.dictionary(forKey: "templateWarmupDurations") as? [String: [Int]] ?? [:]
+        var durations = durationsDict[templateID] ?? []
+        
+        if index < durations.count {
+            durations.remove(at: index)
+            durationsDict[templateID] = durations
+            UserDefaults.standard.set(durationsDict, forKey: "templateWarmupDurations")
         }
     }
     
