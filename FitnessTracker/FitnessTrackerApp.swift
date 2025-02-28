@@ -8,6 +8,11 @@
 import SwiftUI
 import CoreData
 
+// Create a notification name for scene phase changes
+extension Notification.Name {
+    static let appScenePhaseChanged = Notification.Name("AppScenePhaseChanged")
+}
+
 @main
 struct FitnessTrackerApp: App {
     let persistenceController = PersistenceController.shared
@@ -20,6 +25,13 @@ struct FitnessTrackerApp: App {
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
         }
         .onChange(of: scenePhase) { oldPhase, newPhase in
+            // Broadcast app state change so any active TimerManager instances can respond
+            NotificationCenter.default.post(
+                name: .appScenePhaseChanged,
+                object: nil,
+                userInfo: ["phase": newPhase]
+            )
+            
             switch newPhase {
             case .active:
                 print("DEBUG: App became active")

@@ -5,6 +5,7 @@ import Combine
 struct WorkoutView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.scenePhase) private var scenePhase
     
     @ObservedObject var workoutManager: WorkoutManager
     @ObservedObject var timerManager = TimerManager()
@@ -263,6 +264,23 @@ struct WorkoutView: View {
         .onAppear {
             // Load warmups when the view appears
             loadWarmupsAndStartTimerIfNeeded()
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            switch newPhase {
+            case .active:
+                // App came back to foreground
+                print("DEBUG: WorkoutView - App became active")
+                timerManager.handleAppBecameActive()
+            case .background:
+                // App went to background
+                print("DEBUG: WorkoutView - App went to background")
+                timerManager.handleAppWentToBackground()
+            case .inactive:
+                // App became inactive (but not yet in background)
+                print("DEBUG: WorkoutView - App became inactive")
+            @unknown default:
+                break
+            }
         }
     }
     
@@ -837,6 +855,9 @@ struct RestTimerView: View {
     @State private var timeRemaining: Int
     @State private var isRunning = false
     @State private var timerTask: Task<Void, Error>?
+    @State private var startTime: Date? = nil
+    @State private var timer: AnyCancellable?
+    @Environment(\.scenePhase) private var scenePhase
     
     init(showingRestTimer: Binding<Bool>, defaultSeconds: Int = 90) {
         self._showingRestTimer = showingRestTimer
@@ -911,6 +932,12 @@ struct RestTimerView: View {
                     timeRemaining = 101
                 }
             }
+            .onChange(of: scenePhase) { oldPhase, newPhase in
+                if newPhase == .active && isRunning {
+                    // The app has become active again - update timer
+                    updateRemainingTime()
+                }
+            }
         }
     }
     
@@ -934,30 +961,43 @@ struct RestTimerView: View {
         timeRemaining = restSeconds
         isRunning = true
         
-        timerTask = Task {
-            do {
-                while isRunning && timeRemaining > 0 {
-                    try await Task.sleep(for: .seconds(1))
-                    if !Task.isCancelled {
-                        await MainActor.run {
-                            timeRemaining -= 1
-                            if timeRemaining <= 0 {
-                                isRunning = false
-                                showingRestTimer = false
-                            }
-                        }
-                    }
-                }
-            } catch {
-                // Task was cancelled
+        // Record the start time
+        startTime = Date()
+        
+        // Use Timer.publish to ensure proper background updating
+        timer = Timer.publish(every: 0.5, on: .main, in: .common)
+            .autoconnect()
+            .sink { _ in
+                self.updateRemainingTime()
             }
+    }
+    
+    private func updateRemainingTime() {
+        guard let startTime = startTime, isRunning else { return }
+        
+        // Calculate elapsed time
+        let elapsedSeconds = Int(Date().timeIntervalSince(startTime))
+        
+        // Calculate remaining time
+        let remaining = max(0, restSeconds - elapsedSeconds)
+        
+        if remaining <= 0 {
+            // Timer completed
+            timeRemaining = 0
+            isRunning = false
+            showingRestTimer = false
+        } else {
+            timeRemaining = remaining
         }
     }
     
     private func stopTimer() {
         isRunning = false
+        timer?.cancel()
+        timer = nil
         timerTask?.cancel()
         timerTask = nil
+        startTime = nil
     }
     
     private func restartTimer() {

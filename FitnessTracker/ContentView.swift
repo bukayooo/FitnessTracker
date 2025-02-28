@@ -11,6 +11,7 @@ import CoreData
 struct ContentView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @StateObject var workoutManager: WorkoutManager
+    @State private var selectedTab = 0  // Start with Templates tab to avoid interference
     
     init() {
         // Initialize WorkoutManager with the injected context
@@ -19,13 +20,14 @@ struct ContentView: View {
     }
     
     var body: some View {
-        TabView {
+        TabView(selection: $selectedTab) {
             TemplatesView()
                 .environment(\.managedObjectContext, viewContext)
                 .environmentObject(workoutManager)
                 .tabItem {
                     Label("Templates", systemImage: "list.bullet")
                 }
+                .tag(0)
             
             WorkoutTabView()
                 .environment(\.managedObjectContext, viewContext)
@@ -33,6 +35,7 @@ struct ContentView: View {
                 .tabItem {
                     Label("Workout", systemImage: "dumbbell")
                 }
+                .tag(1)
             
             ProgressTabView()
                 .environment(\.managedObjectContext, viewContext)
@@ -40,6 +43,14 @@ struct ContentView: View {
                 .tabItem {
                     Label("Progress", systemImage: "chart.line.uptrend.xyaxis")
                 }
+                .tag(2)
+        }
+        .onAppear {
+            // Set the default tab to Workout after the view appears
+            // This delay allows everything to be properly initialized first
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                selectedTab = 1 // Switch to Workout tab
+            }
         }
     }
 }

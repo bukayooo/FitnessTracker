@@ -7,6 +7,7 @@
 
 import Foundation
 import Combine
+import SwiftUI
 
 class TimerManager: ObservableObject {
     // MARK: - Properties
@@ -29,41 +30,76 @@ class TimerManager: ObservableObject {
     private var workoutTimer: AnyCancellable?
     private var restTimer: AnyCancellable?
     private var warmupTimer: AnyCancellable?
-    private var startTime: Date?
+    private var workoutStartTime: Date?
     private var pausedElapsedTime: Int = 0
+    private var appPhaseObserver: AnyCancellable?
+    
+    init() {
+        // Check if we have saved timer state from a previous session
+        restoreTimerStateIfNeeded()
+        
+        // Subscribe to app phase change notifications
+        appPhaseObserver = NotificationCenter.default.publisher(for: .appScenePhaseChanged)
+            .sink { [weak self] notification in
+                guard let self = self,
+                      let userInfo = notification.userInfo,
+                      let phase = userInfo["phase"] as? ScenePhase else {
+                    return
+                }
+                
+                switch phase {
+                case .active:
+                    self.handleAppBecameActive()
+                case .background:
+                    self.handleAppWentToBackground()
+                default:
+                    break
+                }
+            }
+    }
     
     // MARK: - Workout Timer Methods
     func startWorkoutTimer() {
-        startTime = Date()
+        workoutStartTime = Date()
         isWorkoutTimerActive = true
-        workoutTimer = Timer.publish(every: 1, on: .main, in: .common)
+        saveTimerState()
+        
+        workoutTimer = Timer.publish(every: 0.5, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
                 guard let self = self else { return }
-                if let startTime = self.startTime {
-                    self.workoutElapsedSeconds = Int(Date().timeIntervalSince(startTime))
-                }
+                self.updateWorkoutElapsedTime()
             }
+    }
+    
+    func updateWorkoutElapsedTime() {
+        guard let startTime = workoutStartTime else { return }
+        workoutElapsedSeconds = Int(Date().timeIntervalSince(startTime)) + pausedElapsedTime
     }
     
     func pauseWorkoutTimer() {
         workoutTimer?.cancel()
         workoutTimer = nil
         isWorkoutTimerActive = false
-        pausedElapsedTime = workoutElapsedSeconds
+        
+        // Store current elapsed time
+        if let startTime = workoutStartTime {
+            pausedElapsedTime += Int(Date().timeIntervalSince(startTime))
+        }
+        workoutStartTime = nil
+        saveTimerState()
     }
     
     func resumeWorkoutTimer() {
-        // Set startTime to account for the elapsed time before pause
-        startTime = Date().addingTimeInterval(-Double(pausedElapsedTime))
+        workoutStartTime = Date()
         isWorkoutTimerActive = true
-        workoutTimer = Timer.publish(every: 1, on: .main, in: .common)
+        saveTimerState()
+        
+        workoutTimer = Timer.publish(every: 0.5, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
                 guard let self = self else { return }
-                if let startTime = self.startTime {
-                    self.workoutElapsedSeconds = Int(Date().timeIntervalSince(startTime))
-                }
+                self.updateWorkoutElapsedTime()
             }
     }
     
@@ -72,12 +108,79 @@ class TimerManager: ObservableObject {
         workoutTimer = nil
         isWorkoutTimerActive = false
         
-        // Return the total duration in seconds
-        let totalDuration = workoutElapsedSeconds
+        // Calculate final duration
+        var totalDuration = pausedElapsedTime
+        if let startTime = workoutStartTime {
+            totalDuration += Int(Date().timeIntervalSince(startTime))
+        }
+        
+        // Reset the timer
         workoutElapsedSeconds = 0
-        startTime = nil
+        workoutStartTime = nil
         pausedElapsedTime = 0
+        saveTimerState()
+        
         return totalDuration
+    }
+    
+    // MARK: - Timer State Persistence
+    
+    private func saveTimerState() {
+        // Save workout timer state
+        UserDefaults.standard.set(isWorkoutTimerActive, forKey: "workout_timer_active")
+        UserDefaults.standard.set(pausedElapsedTime, forKey: "workout_paused_time")
+        
+        // Save start time if active
+        if let startTime = workoutStartTime {
+            UserDefaults.standard.set(startTime.timeIntervalSince1970, forKey: "workout_start_time")
+        } else {
+            UserDefaults.standard.removeObject(forKey: "workout_start_time")
+        }
+        
+        print("DEBUG: Saved timer state: active=\(isWorkoutTimerActive), pausedTime=\(pausedElapsedTime)")
+    }
+    
+    private func restoreTimerStateIfNeeded() {
+        // Restore workout timer state
+        if UserDefaults.standard.bool(forKey: "workout_timer_active") {
+            isWorkoutTimerActive = true
+            pausedElapsedTime = UserDefaults.standard.integer(forKey: "workout_paused_time")
+            
+            // Restore start time if it exists
+            if let startTimeInterval = UserDefaults.standard.object(forKey: "workout_start_time") as? TimeInterval {
+                workoutStartTime = Date(timeIntervalSince1970: startTimeInterval)
+                
+                // Setup timer again
+                workoutTimer = Timer.publish(every: 0.5, on: .main, in: .common)
+                    .autoconnect()
+                    .sink { [weak self] _ in
+                        guard let self = self else { return }
+                        self.updateWorkoutElapsedTime()
+                    }
+                
+                // Update elapsed time immediately
+                updateWorkoutElapsedTime()
+            }
+            
+            print("DEBUG: Restored timer state: active=\(isWorkoutTimerActive), pausedTime=\(pausedElapsedTime)")
+        }
+    }
+    
+    // Method to handle app coming back to foreground
+    func handleAppBecameActive() {
+        print("DEBUG: TimerManager - App became active")
+        restoreTimerStateIfNeeded()
+        
+        if isWorkoutTimerActive, workoutStartTime != nil {
+            updateWorkoutElapsedTime()
+            print("DEBUG: TimerManager - Updated elapsed time to \(workoutElapsedSeconds)")
+        }
+    }
+    
+    // Method to handle app going to background
+    func handleAppWentToBackground() {
+        print("DEBUG: TimerManager - App went to background")
+        saveTimerState()
     }
     
     // MARK: - Rest Timer Methods
@@ -181,5 +284,6 @@ class TimerManager: ObservableObject {
         workoutTimer?.cancel()
         restTimer?.cancel()
         warmupTimer?.cancel()
+        appPhaseObserver?.cancel()
     }
 } 

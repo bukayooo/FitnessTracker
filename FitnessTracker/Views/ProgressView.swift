@@ -36,16 +36,20 @@ struct ProgressTabView: View {
                 } else {
                     // Progress sections
                     List {
-                        WorkoutHistorySection(
-                            selectedWorkout: $selectedWorkout
-                        )
+                        if searchText.isEmpty {
+                            WorkoutHistorySection(
+                                selectedWorkout: $selectedWorkout
+                            )
+                        }
                         
                         ExerciseProgressSection(
-                            selectedExercise: $selectedExercise
+                            selectedExercise: $selectedExercise,
+                            searchText: searchText
                         )
                     }
                     .listStyle(InsetGroupedListStyle())
-                    .searchable(text: $searchText, prompt: "Search workouts")
+                    .searchable(text: $searchText, prompt: "Search exercises")
+                    .animation(.easeInOut, value: searchText)
                 }
             }
             .navigationTitle("Progress")
@@ -90,11 +94,20 @@ struct ExerciseProgressSection: View {
     @EnvironmentObject var workoutManager: WorkoutManager
     @Binding var selectedExercise: IdentifiableString?
     @State private var allExercises: [String] = []
+    var searchText: String = ""
+    
+    var filteredExercises: [String] {
+        if searchText.isEmpty {
+            return allExercises
+        } else {
+            return allExercises.filter { $0.localizedCaseInsensitiveContains(searchText) }
+        }
+    }
     
     var body: some View {
         Section(header: Text("Exercise Progress")) {
             VStack(spacing: 16) {
-                ForEach(allExercises, id: \.self) { exerciseName in
+                ForEach(filteredExercises, id: \.self) { exerciseName in
                     ExerciseChartPreview(
                         exerciseName: exerciseName
                     )
@@ -102,6 +115,13 @@ struct ExerciseProgressSection: View {
                     .onTapGesture {
                         selectedExercise = IdentifiableString(value: exerciseName)
                     }
+                }
+                
+                if filteredExercises.isEmpty && !searchText.isEmpty {
+                    Text("No exercises found matching '\(searchText)'")
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 20)
                 }
             }
             .padding(.vertical, 8)
