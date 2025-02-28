@@ -18,3 +18,14 @@ import CoreData
 
 // Note: The Core Data entity classes are defined in their respective files
 // and should be imported directly where needed 
+
+// Warmup Entity
+class Warmup: NSManagedObject {
+    @NSManaged public var name: String?
+    @NSManaged public var order: Int16
+    @NSManaged public var template: WorkoutTemplate?
+    
+    var warmupName: String {
+        name ?? "Unknown Warmup"
+    }
+} 

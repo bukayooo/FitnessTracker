@@ -186,6 +186,36 @@ class WorkoutManager: ObservableObject {
         }
     }
     
+    // MARK: - Warmup Operations
+    
+    func addWarmup(to template: NSManagedObject, name: String) {
+        // Store warmups in UserDefaults for now until Core Data schema is updated
+        let templateID = template.objectID.uriRepresentation().absoluteString
+        var warmupsDict = UserDefaults.standard.dictionary(forKey: "templateWarmups") as? [String: [String]] ?? [:]
+        var warmups = warmupsDict[templateID] ?? []
+        warmups.append(name)
+        warmupsDict[templateID] = warmups
+        UserDefaults.standard.set(warmupsDict, forKey: "templateWarmups")
+    }
+    
+    func getWarmups(for template: NSManagedObject) -> [String] {
+        let templateID = template.objectID.uriRepresentation().absoluteString
+        let warmupsDict = UserDefaults.standard.dictionary(forKey: "templateWarmups") as? [String: [String]] ?? [:]
+        return warmupsDict[templateID] ?? []
+    }
+    
+    func deleteWarmup(from template: NSManagedObject, at index: Int) {
+        let templateID = template.objectID.uriRepresentation().absoluteString
+        var warmupsDict = UserDefaults.standard.dictionary(forKey: "templateWarmups") as? [String: [String]] ?? [:]
+        var warmups = warmupsDict[templateID] ?? []
+        
+        if index < warmups.count {
+            warmups.remove(at: index)
+            warmupsDict[templateID] = warmups
+            UserDefaults.standard.set(warmupsDict, forKey: "templateWarmups")
+        }
+    }
+    
     // MARK: - Workout Operations
     
     func startWorkout(from template: NSManagedObject) -> NSManagedObject? {

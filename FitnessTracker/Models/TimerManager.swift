@@ -15,11 +15,20 @@ class TimerManager: ObservableObject {
     @Published var isRestTimerActive: Bool = false
     @Published var isWorkoutTimerActive: Bool = false
     
+    // Warmup timer properties
+    @Published var warmupTimeRemaining: Int = 0
+    @Published var isWarmupTimerActive: Bool = false
+    @Published var currentWarmupIndex: Int = 0
+    @Published var warmups: [String] = []
+    
     // Default rest timer duration (1:41 = 101 seconds)
     let restDuration: Int = 101
+    // Default warmup timer duration (15 seconds)
+    let warmupDuration: Int = 15
     
     private var workoutTimer: AnyCancellable?
     private var restTimer: AnyCancellable?
+    private var warmupTimer: AnyCancellable?
     private var startTime: Date?
     private var pausedElapsedTime: Int = 0
     
@@ -95,6 +104,63 @@ class TimerManager: ObservableObject {
         restTimeRemaining = 0
     }
     
+    // MARK: - Warmup Timer Methods
+    func startWarmupTimer(warmups: [String]) {
+        self.warmups = warmups
+        if warmups.isEmpty {
+            return
+        }
+        
+        currentWarmupIndex = 0
+        warmupTimeRemaining = warmupDuration
+        isWarmupTimerActive = true
+        
+        warmupTimer = Timer.publish(every: 1, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] _ in
+                guard let self = self else { return }
+                if self.warmupTimeRemaining > 0 {
+                    self.warmupTimeRemaining -= 1
+                } else {
+                    self.moveToNextWarmup()
+                }
+            }
+    }
+    
+    func moveToNextWarmup() {
+        currentWarmupIndex += 1
+        
+        if currentWarmupIndex < warmups.count {
+            // Move to the next warmup
+            warmupTimeRemaining = warmupDuration
+        } else {
+            // All warmups are completed
+            stopWarmupTimer()
+        }
+    }
+    
+    func stopWarmupTimer() {
+        warmupTimer?.cancel()
+        warmupTimer = nil
+        isWarmupTimerActive = false
+        warmupTimeRemaining = 0
+        currentWarmupIndex = 0
+        
+        // Post notification that warmup timer is complete
+        NotificationCenter.default.post(name: NSNotification.Name("WarmupTimerComplete"), object: nil)
+        
+        warmups = []
+    }
+    
+    var currentWarmupName: String? {
+        guard currentWarmupIndex < warmups.count else { return nil }
+        return warmups[currentWarmupIndex]
+    }
+    
+    var isLastWarmup: Bool {
+        return currentWarmupIndex == warmups.count - 1
+    }
+    
     // MARK: - Formatted Strings
     var formattedWorkoutTime: String {
         formatTime(seconds: workoutElapsedSeconds)
@@ -114,5 +180,6 @@ class TimerManager: ObservableObject {
     deinit {
         workoutTimer?.cancel()
         restTimer?.cancel()
+        warmupTimer?.cancel()
     }
 } 

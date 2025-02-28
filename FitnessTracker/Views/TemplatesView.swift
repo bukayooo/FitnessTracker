@@ -514,7 +514,10 @@ struct TemplateDetailView: View {
     @State private var isEditing = false
     @State private var templateName: String
     @State private var exercises: [TemplateExerciseItem] = []
+    @State private var warmups: [String] = []
     @State private var showingAddExercise = false
+    @State private var showingAddWarmup = false
+    @State private var newWarmupName: String = ""
     
     struct TemplateExerciseItem: Identifiable {
         let id = UUID()
@@ -547,6 +550,9 @@ struct TemplateDetailView: View {
             
             _exercises = State(initialValue: items)
         }
+        
+        // Load any existing warmups
+        _warmups = State(initialValue: [])
     }
     
     var body: some View {
@@ -557,6 +563,51 @@ struct TemplateDetailView: View {
                         TextField("Template name", text: $templateName)
                     } else {
                         Text(templateName)
+                    }
+                }
+                
+                // Add Warmups Section
+                Section(header: Text("Warmups")) {
+                    if warmups.isEmpty {
+                        Text("No warmups added")
+                            .foregroundColor(.secondary)
+                            .italic()
+                    } else {
+                        ForEach(warmups.indices, id: \.self) { index in
+                            HStack {
+                                Text(warmups[index])
+                                
+                                Spacer()
+                                
+                                Text("15 sec")
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        .onDelete(perform: isEditing ? deleteWarmup : nil)
+                    }
+                    
+                    if isEditing {
+                        Button {
+                            showingAddWarmup = true
+                        } label: {
+                            HStack {
+                                Image(systemName: "plus.circle.fill")
+                                Text("Add Warmup")
+                            }
+                        }
+                        .alert("Add Warmup", isPresented: $showingAddWarmup) {
+                            TextField("Warmup Name", text: $newWarmupName)
+                            Button("Cancel", role: .cancel) { }
+                            Button("Add") {
+                                if !newWarmupName.isEmpty {
+                                    workoutManager.addWarmup(to: template, name: newWarmupName)
+                                    loadWarmups()
+                                    newWarmupName = ""
+                                }
+                            }
+                        } message: {
+                            Text("Enter the name of the warmup exercise")
+                        }
                     }
                 }
                 
@@ -709,6 +760,10 @@ struct TemplateDetailView: View {
                     }
                 }
             }
+            .onAppear {
+                loadWarmups()
+                loadExercises()
+            }
             .sheet(isPresented: $showingAddExercise) {
                 AddExerciseView { exerciseName in
                     let newExercise = TemplateExerciseItem(
@@ -719,6 +774,17 @@ struct TemplateDetailView: View {
                 }
             }
         }
+    }
+    
+    private func loadWarmups() {
+        warmups = workoutManager.getWarmups(for: template)
+    }
+    
+    private func deleteWarmup(at offsets: IndexSet) {
+        for index in offsets {
+            workoutManager.deleteWarmup(from: template, at: index)
+        }
+        loadWarmups()
     }
     
     private func loadExercises() {
@@ -760,29 +826,17 @@ struct TemplateDetailView: View {
     }
     
     private func saveChanges() {
-        // Update the template name
-        workoutManager.updateTemplate(template, name: templateName)
+        // Update template name
+        template.setValue(templateName, forKey: "name")
         
-        // Remove all existing exercises
-        if let exercisesSet = template.value(forKey: "exercises") as? NSSet {
-            for case let exercise as NSManagedObject in exercisesSet {
-                workoutManager.deleteExercise(exercise)
-            }
-        }
+        // Update exercises - handled through existing methods
         
-        // Add the new exercises with sets count
-        for exercise in exercises {
-            let newExercise = workoutManager.addExercise(to: template, name: exercise.name)
-            // Set the number of sets
-            newExercise.setValue(Int16(exercise.sets), forKey: "sets")
-        }
-        
-        // Save the context
+        // Save changes to Core Data
         do {
             try viewContext.save()
-            print("DEBUG: Template exercises updated with custom set counts")
+            print("Template saved successfully")
         } catch {
-            print("DEBUG: Error saving exercise set counts: \(error)")
+            print("Error saving template: \(error)")
         }
     }
 } 

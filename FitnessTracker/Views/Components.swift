@@ -184,4 +184,66 @@ struct EmptyStateView: View {
         .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
+}
+
+// MARK: - Warmup Timer View
+struct WarmupTimerView: View {
+    @ObservedObject var timerManager: TimerManager
+    
+    var body: some View {
+        ZStack {
+            Color(.systemBackground)
+                .edgesIgnoringSafeArea(.all)
+            
+            VStack(spacing: 24) {
+                Text("Warmup")
+                    .font(.system(size: 26, weight: .bold))
+                    .foregroundColor(.primary)
+                
+                if let warmupName = timerManager.currentWarmupName {
+                    Text(warmupName)
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundColor(.primary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+                }
+                
+                Text("\(timerManager.warmupTimeRemaining)")
+                    .font(.system(size: 64, weight: .bold, design: .rounded))
+                    .foregroundColor(.blue)
+                    .monospacedDigit()
+                
+                HStack(spacing: 16) {
+                    Button(action: {
+                        timerManager.stopWarmupTimer()
+                    }) {
+                        Text("Skip All")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .padding(.vertical, 12)
+                            .padding(.horizontal, 24)
+                            .background(Color.red)
+                            .cornerRadius(10)
+                    }
+                    
+                    Button(action: {
+                        timerManager.moveToNextWarmup()
+                    }) {
+                        Text(timerManager.isLastWarmup ? "Finish" : "Next")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .padding(.vertical, 12)
+                            .padding(.horizontal, 24)
+                            .background(Color.blue)
+                            .cornerRadius(10)
+                    }
+                }
+                
+                Text("Warmup \(timerManager.currentWarmupIndex + 1) of \(timerManager.warmups.count)")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+            .padding()
+        }
+    }
 } 

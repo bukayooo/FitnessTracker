@@ -20,6 +20,10 @@ struct WorkoutView: View {
     
     @State private var setValues: [String: (reps: Int16, weight: Double)] = [:]
     
+    // Warmup states
+    @State private var isShowingWarmupTimer = false
+    @State private var warmups: [String] = []
+    
     init(workout: NSManagedObject, workoutManager: WorkoutManager) {
         print("DEBUG: ⭐️ WorkoutView initializing with entity: \(workout.entity.name ?? "unknown")")
         print("DEBUG: ⭐️ Workout object ID: \(workout.objectID)")
@@ -245,6 +249,24 @@ struct WorkoutView: View {
     }
     
     var body: some View {
+        ZStack {
+            if isShowingWarmupTimer {
+                WarmupTimerView(timerManager: timerManager)
+                    .onDisappear {
+                        // When warmup timer view disappears, stop its timer
+                        timerManager.stopWarmupTimer()
+                    }
+            } else {
+                mainWorkoutView
+            }
+        }
+        .onAppear {
+            // Load warmups when the view appears
+            loadWarmupsAndStartTimerIfNeeded()
+        }
+    }
+    
+    private var mainWorkoutView: some View {
         NavigationStack {
             VStack(spacing: 0) {
                 timerHeader()
@@ -405,6 +427,31 @@ struct WorkoutView: View {
     
     private func deleteExercise(_ exercise: NSManagedObject) {
         workoutManager.deleteExercise(exercise)
+    }
+    
+    private func loadWarmupsAndStartTimerIfNeeded() {
+        if !isTemplateView {
+            // Only show warmups when starting an actual workout (not when viewing a template)
+            if let templateObj = workout.value(forKey: "template") as? NSManagedObject {
+                // Get warmups from the workout's template
+                warmups = workoutManager.getWarmups(for: templateObj)
+                
+                if !warmups.isEmpty {
+                    // Start warmup timer with loaded warmups
+                    timerManager.startWarmupTimer(warmups: warmups)
+                    isShowingWarmupTimer = true
+                    
+                    // Listen for when all warmups are completed
+                    NotificationCenter.default.addObserver(
+                        forName: NSNotification.Name("WarmupTimerComplete"),
+                        object: nil,
+                        queue: .main
+                    ) { _ in
+                        isShowingWarmupTimer = false
+                    }
+                }
+            }
+        }
     }
 }
 
