@@ -857,7 +857,8 @@ struct SetRow: View {
                 .buttonStyle(.plain)
                 .padding(.top, 4)
                 .sheet(isPresented: $showingRestTimer) {
-                    RestTimerView(showingRestTimer: $showingRestTimer, defaultSeconds: 101)
+                    RestTimerView(showingRestTimer: $showingRestTimer)
+                        .environmentObject(timerManager)
                 }
             }
         }
@@ -867,35 +868,24 @@ struct SetRow: View {
 // MARK: - Rest Timer View
 struct RestTimerView: View {
     @Binding var showingRestTimer: Bool
-    @State private var restSeconds: Int
-    @State private var timeRemaining: Int
-    @State private var isRunning = false
-    @State private var timerTask: Task<Void, Error>?
-    @State private var startTime: Date? = nil
-    @State private var timer: AnyCancellable?
-    @Environment(\.scenePhase) private var scenePhase
-    
-    init(showingRestTimer: Binding<Bool>, defaultSeconds: Int = 90) {
-        self._showingRestTimer = showingRestTimer
-        self._restSeconds = State(initialValue: defaultSeconds)
-        self._timeRemaining = State(initialValue: defaultSeconds)
-    }
+    @State private var selectedDuration: Int = 101  // Default to 1:41
+    @EnvironmentObject var timerManager: TimerManager
     
     var body: some View {
         NavigationStack {
             VStack(spacing: 30) {
-                Text(isRunning ? "Rest Time" : "Set Rest Timer")
+                Text(timerManager.isRestTimerActive ? "Rest Time" : "Set Rest Timer")
                     .font(.title)
                     .fontWeight(.bold)
                 
-                if isRunning {
-                    Text(formatSeconds(timeRemaining))
+                if timerManager.isRestTimerActive {
+                    Text(timerManager.formattedRestTime)
                         .font(.system(size: 70, weight: .bold, design: .monospaced))
                         .padding()
                     
                     HStack(spacing: 40) {
                         Button(action: {
-                            stopTimer()
+                            timerManager.stopRestTimer()
                             showingRestTimer = false
                         }) {
                             Text("Skip")
@@ -905,7 +895,8 @@ struct RestTimerView: View {
                         .frame(width: 120)
                         
                         Button(action: {
-                            restartTimer()
+                            timerManager.stopRestTimer()
+                            timerManager.startRestTimer(duration: selectedDuration)
                         }) {
                             Text("Restart")
                                 .fontWeight(.semibold)
@@ -913,7 +904,9 @@ struct RestTimerView: View {
                         .buttonStyle(PrimaryButtonStyle())
                         .frame(width: 120)
                     }
-                } else {
+                }
+                
+                if !timerManager.isRestTimerActive {
                     HStack(spacing: 20) {
                         presetButton(seconds: 60, label: "1:00")
                         presetButton(seconds: 101, label: "1:41")
@@ -922,7 +915,7 @@ struct RestTimerView: View {
                     }
                     
                     Button(action: {
-                        startTimer()
+                        timerManager.startRestTimer(duration: selectedDuration)
                     }) {
                         Text("Start Rest")
                             .fontWeight(.semibold)
@@ -934,97 +927,40 @@ struct RestTimerView: View {
             .padding()
             .navigationBarItems(
                 trailing: Button("Close") {
-                    stopTimer()
+                    if timerManager.isRestTimerActive {
+                        timerManager.stopRestTimer()
+                    }
                     showingRestTimer = false
                 }
             )
             .onDisappear {
-                stopTimer()
+                // Don't stop the timer when view disappears
+                // Let it continue in the background
             }
             .onAppear {
-                // Ensure the default is 1:41 (101 seconds)
-                if restSeconds != 101 {
-                    restSeconds = 101
-                    timeRemaining = 101
-                }
-            }
-            .onChange(of: scenePhase) { oldPhase, newPhase in
-                if newPhase == .active && isRunning {
-                    // The app has become active again - update timer
-                    updateRemainingTime()
-                }
+                // Set default duration to 1:41 (101 seconds)
+                selectedDuration = 101
             }
         }
     }
     
     private func presetButton(seconds: Int, label: String) -> some View {
         Button(action: {
-            restSeconds = seconds
-            timeRemaining = seconds
+            selectedDuration = seconds
+            if timerManager.isRestTimerActive {
+                timerManager.stopRestTimer()
+                timerManager.startRestTimer(duration: seconds)
+            }
         }) {
             Text(label)
                 .fontWeight(.medium)
                 .frame(minWidth: 60)
                 .padding(.vertical, 10)
                 .padding(.horizontal, 12)
-                .background(restSeconds == seconds ? Color.blue : Color(.systemGray5))
-                .foregroundColor(restSeconds == seconds ? .white : .primary)
+                .background(selectedDuration == seconds ? Color.blue : Color(.systemGray5))
+                .foregroundColor(selectedDuration == seconds ? .white : .primary)
                 .cornerRadius(8)
         }
-    }
-    
-    private func startTimer() {
-        timeRemaining = restSeconds
-        isRunning = true
-        
-        // Record the start time
-        startTime = Date()
-        
-        // Use Timer.publish to ensure proper background updating
-        timer = Timer.publish(every: 0.5, on: .main, in: .common)
-            .autoconnect()
-            .sink { _ in
-                self.updateRemainingTime()
-            }
-    }
-    
-    private func updateRemainingTime() {
-        guard let startTime = startTime, isRunning else { return }
-        
-        // Calculate elapsed time
-        let elapsedSeconds = Int(Date().timeIntervalSince(startTime))
-        
-        // Calculate remaining time
-        let remaining = max(0, restSeconds - elapsedSeconds)
-        
-        if remaining <= 0 {
-            // Timer completed
-            timeRemaining = 0
-            isRunning = false
-            showingRestTimer = false
-        } else {
-            timeRemaining = remaining
-        }
-    }
-    
-    private func stopTimer() {
-        isRunning = false
-        timer?.cancel()
-        timer = nil
-        timerTask?.cancel()
-        timerTask = nil
-        startTime = nil
-    }
-    
-    private func restartTimer() {
-        stopTimer()
-        startTimer()
-    }
-    
-    private func formatSeconds(_ seconds: Int) -> String {
-        let minutes = seconds / 60
-        let remainingSeconds = seconds % 60
-        return String(format: "%d:%02d", minutes, remainingSeconds)
     }
 }
 

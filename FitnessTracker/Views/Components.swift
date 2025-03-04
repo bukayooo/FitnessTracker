@@ -226,22 +226,43 @@ struct WarmupTimerView: View {
                             .cornerRadius(10)
                     }
                     
-                    Button(action: {
-                        timerManager.moveToNextWarmup()
-                    }) {
-                        Text(timerManager.isLastWarmup ? "Finish" : "Next")
-                            .font(.headline)
-                            .foregroundColor(.white)
-                            .padding(.vertical, 12)
-                            .padding(.horizontal, 24)
-                            .background(Color.blue)
-                            .cornerRadius(10)
+                    if timerManager.isWarmupTimerPaused {
+                        Button(action: {
+                            timerManager.startCurrentWarmup()
+                        }) {
+                            Text("Start")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                                .padding(.vertical, 12)
+                                .padding(.horizontal, 24)
+                                .background(Color.green)
+                                .cornerRadius(10)
+                        }
+                    } else {
+                        Button(action: {
+                            timerManager.moveToNextWarmup()
+                        }) {
+                            Text(timerManager.isLastWarmup ? "Finish" : "Next")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                                .padding(.vertical, 12)
+                                .padding(.horizontal, 24)
+                                .background(Color.blue)
+                                .cornerRadius(10)
+                        }
                     }
                 }
                 
                 Text("Warmup \(timerManager.currentWarmupIndex + 1) of \(timerManager.warmups.count)")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
+                
+                if timerManager.isWarmupTimerPaused {
+                    Text("Get ready for this warmup!")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .padding(.top, 8)
+                }
             }
             .padding()
         }
