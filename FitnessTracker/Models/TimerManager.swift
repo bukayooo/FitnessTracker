@@ -328,6 +328,9 @@ class TimerManager: ObservableObject {
         initialRestDuration = 0
         print("DEBUG: 🔔 Rest timer stopped - active: \(isRestTimerActive)")
         
+        // Post notification that rest timer is complete
+        NotificationCenter.default.post(name: NSNotification.Name("RestTimerComplete"), object: nil)
+        
         // Save state immediately when stopping
         saveTimerState()
     }

@@ -940,6 +940,15 @@ struct RestTimerView: View {
             .onAppear {
                 // Set default duration to 1:41 (101 seconds)
                 selectedDuration = 101
+                
+                // Add observer for rest timer completion
+                NotificationCenter.default.addObserver(
+                    forName: NSNotification.Name("RestTimerComplete"),
+                    object: nil,
+                    queue: .main
+                ) { _ in
+                    showingRestTimer = false
+                }
             }
         }
     }
