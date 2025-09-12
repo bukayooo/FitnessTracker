@@ -238,7 +238,7 @@ class TimerManager: ObservableObject {
                                 }
                             } else {
                                 print("DEBUG: 🔔 Rest timer completed")
-                                self.stopRestTimer()
+                                self.handleRestTimerCompletion()
                             }
                         }
                     
@@ -304,7 +304,7 @@ class TimerManager: ObservableObject {
                     }
                 } else {
                     print("DEBUG: 🔔 Rest timer completed naturally")
-                    self.stopRestTimer()
+                    self.handleRestTimerCompletion()
                 }
             }
         
@@ -312,8 +312,36 @@ class TimerManager: ObservableObject {
         saveTimerState()
     }
     
-    func stopRestTimer() {
-        print("DEBUG: 🔔 Stopping rest timer")
+    private func handleRestTimerCompletion() {
+        print("DEBUG: 🔔 Handling rest timer completion")
+        
+        // Check if app is active to show in-app notification
+        if let windowScene = UIApplication.shared.connectedScenes.first(where: { $0 is UIWindowScene }) as? UIWindowScene,
+           let window = windowScene.windows.first(where: { $0.isKeyWindow }) {
+            
+            // App is active, show in-app alert
+            DispatchQueue.main.async {
+                let alert = UIAlertController(
+                    title: "Rest Timer Complete",
+                    message: "Time to start your next set!",
+                    preferredStyle: .alert
+                )
+                
+                alert.addAction(UIAlertAction(title: "OK", style: .default) { _ in
+                    print("DEBUG: 🔔 User acknowledged rest timer completion")
+                })
+                
+                window.rootViewController?.present(alert, animated: true)
+                print("DEBUG: 🔔 Showing in-app rest timer completion alert")
+            }
+        }
+        
+        // Always stop the timer after handling completion
+        stopRestTimer()
+    }
+    
+    func stopRestTimer(manualStop: Bool = false) {
+        print("DEBUG: 🔔 Stopping rest timer (manual: \(manualStop))")
         print("DEBUG: 🔔 Current state - remaining: \(restTimeRemaining)s, active: \(isRestTimerActive)")
         
         // Remove pending notifications when timer is stopped
@@ -328,8 +356,12 @@ class TimerManager: ObservableObject {
         initialRestDuration = 0
         print("DEBUG: 🔔 Rest timer stopped - active: \(isRestTimerActive)")
         
-        // Post notification that rest timer is complete
-        NotificationCenter.default.post(name: NSNotification.Name("RestTimerComplete"), object: nil)
+        // Post notification that rest timer is complete with manual stop flag
+        NotificationCenter.default.post(
+            name: NSNotification.Name("RestTimerComplete"), 
+            object: nil, 
+            userInfo: ["manualStop": manualStop]
+        )
         
         // Save state immediately when stopping
         saveTimerState()

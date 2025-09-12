@@ -30,10 +30,16 @@ class WorkoutManager: ObservableObject {
             object: nil
         )
         
-        // Initial fetch of templates
+        // Initial fetch of templates with better error handling
         DispatchQueue.main.async {
-            self.templates = self.fetchTemplatesFromStore()
+            // Force a fresh fetch on startup to ensure we have current data
+            self.templates = []
+            let freshTemplates = self.fetchTemplatesFromStore()
+            self.templates = freshTemplates
             print("DEBUG: Initial templates loaded: \(self.templates.count)")
+            
+            // Update template count immediately
+            self.templateCount = freshTemplates.count
         }
     }
     
@@ -624,15 +630,10 @@ class WorkoutManager: ObservableObject {
     // MARK: - Fetch Requests
     
     func fetchAllTemplates() -> [NSManagedObject] {
-        // Return cached templates if available
-        if !templates.isEmpty {
-            return templates
-        }
-        
-        // Otherwise fetch from store and update cache
+        // Always fetch fresh data from store to avoid stale cache issues
         let fetchedTemplates = fetchTemplatesFromStore()
         
-        // Update templates without triggering a publisher during the view update cycle
+        // Update templates cache
         DispatchQueue.main.async {
             self.templates = fetchedTemplates
         }
@@ -649,7 +650,13 @@ class WorkoutManager: ObservableObject {
         // Ensure fetch request includes relationships to avoid faulting issues
         request.relationshipKeyPathsForPrefetching = ["exercises"]
         
+        // Configure fetch request to return fresh objects
+        request.returnsObjectsAsFaults = false
+        
         do {
+            // Refresh context to ensure we get the latest data
+            viewContext.refreshAllObjects()
+            
             // Fetch with error handling
             let results = try viewContext.fetch(request)
             print("DEBUG: Fetched \(results.count) templates")
@@ -657,19 +664,21 @@ class WorkoutManager: ObservableObject {
             if !results.isEmpty {
                 print("DEBUG: First template name: \(results[0].value(forKey: "name") as? String ?? "nil")")
                 
-                // Force refresh any stale objects
+                // Verify each template has proper context and force fault relationships
                 for template in results {
                     if template.managedObjectContext != nil {
-                        viewContext.refresh(template, mergeChanges: true)
-                    }
-                }
-                
-                // Handle potential nil managed object contexts
-                results.forEach { template in
-                    if template.managedObjectContext == nil {
+                        // Force fault the exercises relationship to ensure it's loaded
+                        if let exercises = template.value(forKey: "exercises") as? NSSet {
+                            print("DEBUG: Template '\(template.value(forKey: "name") as? String ?? "nil")' has \(exercises.count) exercises")
+                        } else {
+                            print("DEBUG: ⚠️ Template '\(template.value(forKey: "name") as? String ?? "nil")' has no exercises relationship")
+                        }
+                    } else {
                         print("DEBUG: ⚠️ Template has nil context: \(template.objectID)")
                     }
                 }
+            } else {
+                print("DEBUG: No templates found in store")
             }
             
             // Update template count - but NOT during a view update cycle

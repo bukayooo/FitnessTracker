@@ -885,7 +885,7 @@ struct RestTimerView: View {
                     
                     HStack(spacing: 40) {
                         Button(action: {
-                            timerManager.stopRestTimer()
+                            timerManager.stopRestTimer(manualStop: true)
                             showingRestTimer = false
                         }) {
                             Text("Skip")
@@ -895,7 +895,7 @@ struct RestTimerView: View {
                         .frame(width: 120)
                         
                         Button(action: {
-                            timerManager.stopRestTimer()
+                            timerManager.stopRestTimer(manualStop: true)
                             timerManager.startRestTimer(duration: selectedDuration)
                         }) {
                             Text("Restart")
@@ -928,7 +928,7 @@ struct RestTimerView: View {
             .navigationBarItems(
                 trailing: Button("Close") {
                     if timerManager.isRestTimerActive {
-                        timerManager.stopRestTimer()
+                        timerManager.stopRestTimer(manualStop: true)
                     }
                     showingRestTimer = false
                 }
@@ -941,13 +941,18 @@ struct RestTimerView: View {
                 // Set default duration to 1:41 (101 seconds)
                 selectedDuration = 101
                 
-                // Add observer for rest timer completion
+                // Add observer for rest timer completion - only dismiss if timer was manually stopped
                 NotificationCenter.default.addObserver(
                     forName: NSNotification.Name("RestTimerComplete"),
                     object: nil,
                     queue: .main
-                ) { _ in
-                    showingRestTimer = false
+                ) { notification in
+                    // Only auto-dismiss if the timer was manually stopped, not if it completed naturally
+                    if let userInfo = notification.userInfo,
+                       userInfo["manualStop"] as? Bool == true {
+                        showingRestTimer = false
+                    }
+                    // If timer completed naturally, keep sheet open so user can see it completed
                 }
             }
         }
@@ -957,7 +962,7 @@ struct RestTimerView: View {
         Button(action: {
             selectedDuration = seconds
             if timerManager.isRestTimerActive {
-                timerManager.stopRestTimer()
+                timerManager.stopRestTimer(manualStop: true)
                 timerManager.startRestTimer(duration: seconds)
             }
         }) {

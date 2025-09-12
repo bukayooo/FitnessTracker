@@ -229,8 +229,8 @@ struct TemplatesView: View {
         let _ = refreshToggle // Remove direct workoutManager.templateCount dependency 
         print("DEBUG: Refreshing templates view with count: \(workoutManager.templateCount)")
         
-        // Fetch templates only once per view update
-        let templates = workoutManager.templates.isEmpty ? workoutManager.fetchAllTemplates() : workoutManager.templates
+        // Always fetch fresh templates to ensure data is current
+        let templates = workoutManager.fetchAllTemplates()
         
         return Group {
             if templates.isEmpty {
@@ -582,7 +582,7 @@ struct TemplateDetailView: View {
                                     HStack(spacing: 8) {
                                         Stepper("", value: $warmupDurations[index], in: 5...60, step: 5)
                                             .labelsHidden()
-                                            .onChange(of: warmupDurations[index]) { newValue in
+                                            .onChange(of: warmupDurations[index]) { _, newValue in
                                                 workoutManager.updateWarmupDuration(for: template, at: index, duration: newValue)
                                                 print("DEBUG: Updated warmup duration at index \(index) to \(newValue) sec")
                                             }
@@ -641,7 +641,7 @@ struct TemplateDetailView: View {
                                     HStack(spacing: 8) {
                                         Stepper("", value: $exercises[index].sets, in: 1...10)
                                             .labelsHidden()
-                                            .onChange(of: exercises[index].sets) { newValue in
+                                            .onChange(of: exercises[index].sets) { _, newValue in
                                                 if let exerciseObj = (template.value(forKey: "exercises") as? NSSet)?.allObjects
                                                     .compactMap({ $0 as? NSManagedObject })
                                                     .first(where: { $0.value(forKey: "order") as? Int16 == Int16(exercises[index].order) }) {
