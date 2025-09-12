@@ -851,7 +851,7 @@ struct SetRow: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 6)
-                    .background(Color.blue.opacity(0.1))
+                    .background(Color.fitnessBronze.opacity(0.1))
                     .cornerRadius(8)
                 }
                 .buttonStyle(.plain)
@@ -971,7 +971,7 @@ struct RestTimerView: View {
                 .frame(minWidth: 60)
                 .padding(.vertical, 10)
                 .padding(.horizontal, 12)
-                .background(selectedDuration == seconds ? Color.blue : Color(.systemGray5))
+                .background(selectedDuration == seconds ? Color.fitnessPrimary : Color(.systemGray5))
                 .foregroundColor(selectedDuration == seconds ? .white : .primary)
                 .cornerRadius(8)
         }

@@ -83,7 +83,7 @@ struct WorkoutHistorySection: View {
             NavigationLink(destination: AllWorkoutsView()) {
                 Text("See All Workouts")
                     .font(.subheadline)
-                    .foregroundColor(.blue)
+                    .foregroundColor(.fitnessPrimary)
             }
         }
     }
@@ -233,13 +233,13 @@ struct ExerciseChartPreview: View {
                             x: .value("Date", dataPoint.date),
                             y: .value("Weight", dataPoint.weight)
                         )
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(Color.fitnessPrimary)
                         
                         PointMark(
                             x: .value("Date", dataPoint.date),
                             y: .value("Weight", dataPoint.weight)
                         )
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(Color.fitnessPrimary)
                     }
                 }
                 .frame(height: 120)
@@ -505,7 +505,7 @@ struct ExerciseProgressDetailView: View {
                                 x: .value("Date", dataPoint.date),
                                 y: .value("Weight", dataPoint.weight)
                             )
-                            .foregroundStyle(.blue)
+                            .foregroundStyle(Color.fitnessPrimary)
                             
                             PointMark(
                                 x: .value("Date", dataPoint.date),
@@ -516,7 +516,7 @@ struct ExerciseProgressDetailView: View {
                                     .font(.caption2)
                                     .foregroundColor(.secondary)
                             }
-                            .foregroundStyle(.blue)
+                            .foregroundStyle(Color.fitnessPrimary)
                         }
                     }
                     .frame(height: 300)

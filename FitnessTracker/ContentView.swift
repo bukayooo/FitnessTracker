@@ -79,7 +79,7 @@ struct WorkoutTabView: View {
                     Text(error)
                         .foregroundColor(.white)
                         .padding()
-                        .background(Color.red)
+                        .background(Color.fitnessError)
                         .cornerRadius(8)
                         .padding(.horizontal)
                         .onAppear {
@@ -104,7 +104,7 @@ struct WorkoutTabView: View {
                         .frame(maxWidth: .infinity)
                         .frame(height: 56)
                         .padding(.horizontal)
-                        .background(Color.blue)
+                        .background(Color.fitnessPrimary)
                         .foregroundColor(.white)
                         .cornerRadius(10)
                     }
@@ -129,7 +129,7 @@ struct WorkoutTabView: View {
                         .frame(maxWidth: .infinity)
                         .frame(height: 56)
                         .padding(.horizontal)
-                        .background(isLoading ? Color.gray : Color.green)
+                        .background(isLoading ? Color.gray : Color.fitnessSuccess)
                         .foregroundColor(.white)
                         .cornerRadius(10)
                     }
@@ -263,8 +263,12 @@ struct TemplateCard: View {
         .frame(maxWidth: .infinity)
         .frame(height: 100)
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(Color.fitnessCardBackground)
         .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.fitnessLightSlate.opacity(0.3), lineWidth: 1)
+        )
     }
 }
 

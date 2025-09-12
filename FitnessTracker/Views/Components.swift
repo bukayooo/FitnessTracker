@@ -16,10 +16,11 @@ struct PrimaryButtonStyle: ButtonStyle {
             .padding(.vertical, 12)
             .padding(.horizontal, 16)
             .frame(maxWidth: .infinity)
-            .background(isEnabled ? Color.blue : Color.gray.opacity(0.5))
+            .background(isEnabled ? Color.fitnessPrimary : Color.gray.opacity(0.5))
             .foregroundColor(.white)
             .font(.headline)
-            .cornerRadius(10)
+            .fontWeight(.semibold)
+            .cornerRadius(12)
             .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
             .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
     }
@@ -31,13 +32,14 @@ struct SecondaryButtonStyle: ButtonStyle {
             .padding(.vertical, 12)
             .padding(.horizontal, 16)
             .frame(maxWidth: .infinity)
-            .background(Color.white)
-            .foregroundColor(.blue)
+            .background(Color.fitnessSecondary.opacity(0.15))
+            .foregroundColor(.fitnessSecondary)
             .font(.headline)
-            .cornerRadius(10)
+            .fontWeight(.medium)
+            .cornerRadius(12)
             .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(Color.blue, lineWidth: 1)
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.fitnessSecondary.opacity(0.5), lineWidth: 1.5)
             )
             .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
             .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
@@ -50,10 +52,11 @@ struct DangerButtonStyle: ButtonStyle {
             .padding(.vertical, 12)
             .padding(.horizontal, 16)
             .frame(maxWidth: .infinity)
-            .background(Color.red)
+            .background(Color.fitnessError)
             .foregroundColor(.white)
             .font(.headline)
-            .cornerRadius(10)
+            .fontWeight(.semibold)
+            .cornerRadius(12)
             .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
             .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
     }
@@ -82,8 +85,8 @@ struct RestTimerButton: View {
             }
             .padding(.vertical, 6)
             .padding(.horizontal, 12)
-            .background(isActive ? Color.blue.opacity(0.15) : Color.gray.opacity(0.15))
-            .foregroundColor(isActive ? .blue : .primary)
+            .background(isActive ? Color.fitnessBronze.opacity(0.15) : Color.gray.opacity(0.15))
+            .foregroundColor(isActive ? .fitnessBronze : .primary)
             .cornerRadius(20)
         }
     }
@@ -210,7 +213,7 @@ struct WarmupTimerView: View {
                 
                 Text("\(timerManager.warmupTimeRemaining)")
                     .font(.system(size: 64, weight: .bold, design: .rounded))
-                    .foregroundColor(.blue)
+                    .foregroundColor(.fitnessBronze)
                     .monospacedDigit()
                 
                 HStack(spacing: 16) {
@@ -219,11 +222,12 @@ struct WarmupTimerView: View {
                     }) {
                         Text("Skip All")
                             .font(.headline)
+                            .fontWeight(.semibold)
                             .foregroundColor(.white)
                             .padding(.vertical, 12)
                             .padding(.horizontal, 24)
-                            .background(Color.red)
-                            .cornerRadius(10)
+                            .background(Color.fitnessError)
+                            .cornerRadius(12)
                     }
                     
                     if timerManager.isWarmupTimerPaused {
@@ -232,11 +236,12 @@ struct WarmupTimerView: View {
                         }) {
                             Text("Start")
                                 .font(.headline)
+                                .fontWeight(.semibold)
                                 .foregroundColor(.white)
                                 .padding(.vertical, 12)
                                 .padding(.horizontal, 24)
-                                .background(Color.green)
-                                .cornerRadius(10)
+                                .background(Color.fitnessSuccess)
+                                .cornerRadius(12)
                         }
                     } else {
                         Button(action: {
@@ -244,11 +249,12 @@ struct WarmupTimerView: View {
                         }) {
                             Text(timerManager.isLastWarmup ? "Finish" : "Next")
                                 .font(.headline)
+                                .fontWeight(.semibold)
                                 .foregroundColor(.white)
                                 .padding(.vertical, 12)
                                 .padding(.horizontal, 24)
-                                .background(Color.blue)
-                                .cornerRadius(10)
+                                .background(Color.fitnessPrimary)
+                                .cornerRadius(12)
                         }
                     }
                 }

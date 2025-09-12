@@ -71,7 +71,7 @@ struct TemplatesView: View {
                         .foregroundColor(.white)
                         .padding(.horizontal, 20)
                         .padding(.vertical, 8)
-                        .background(Color.blue)
+                        .background(Color.fitnessPrimary)
                         .cornerRadius(8)
                     }
                     .padding()
@@ -460,7 +460,7 @@ struct AddExerciseView: View {
                     Text("Add Custom Exercise")
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(exerciseName.isEmpty ? Color.gray : Color.blue)
+                        .background(exerciseName.isEmpty ? Color.gray : Color.fitnessPrimary)
                         .foregroundColor(.white)
                         .cornerRadius(10)
                         .padding(.horizontal)
@@ -714,7 +714,7 @@ struct TemplateDetailView: View {
                             .frame(maxWidth: .infinity)
                             .foregroundColor(.white)
                         }
-                        .listRowBackground(Color.blue)
+                        .listRowBackground(Color.fitnessPrimary)
                     }
                 }
             }

@@ -23,6 +23,7 @@ struct FitnessTrackerApp: App {
         WindowGroup {
             ContentView()
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
+                .tint(.fitnessPrimary)
         }
         .onChange(of: scenePhase) { oldPhase, newPhase in
             // Broadcast app state change so any active TimerManager instances can respond
