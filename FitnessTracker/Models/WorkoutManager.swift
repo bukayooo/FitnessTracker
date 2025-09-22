@@ -16,6 +16,9 @@ class WorkoutManager: ObservableObject {
     @Published var templateCount: Int = 0
     @Published var templates: [NSManagedObject] = []
     
+    // Throttling for refresh operations
+    private var lastRefreshTime: Date = Date.distantPast
+    
     init(context: NSManagedObjectContext) {
         self.viewContext = context
         
@@ -48,15 +51,23 @@ class WorkoutManager: ObservableObject {
     }
     
     @objc func refreshTemplates() {
-        print("DEBUG: Refreshing templates from WorkoutManager")
+        // Throttle refresh requests to prevent excessive calls
+        let now = Date()
+        let timeSinceLastRefresh = now.timeIntervalSince(lastRefreshTime)
+        
+        // Only refresh if at least 1 second has passed since last refresh
+        guard timeSinceLastRefresh > 1.0 else {
+            return
+        }
+        
+        lastRefreshTime = now
+        
         // Clear the templates cache
         self.templates = []
         
         // Fetch fresh templates and update the count
         self.templates = self.fetchTemplatesFromStore()
         self.updateTemplateCount()
-        
-        print("DEBUG: Templates refreshed, count: \(self.templateCount)")
     }
     
     // MARK: - Template Operations
@@ -101,7 +112,6 @@ class WorkoutManager: ObservableObject {
             // Trigger UI update by changing published property
             DispatchQueue.main.async {
                 self.templateCount = count
-                print("DEBUG: Updated templateCount to \(count)")
             }
         } catch {
             print("DEBUG: Error counting templates: \(error)")
@@ -198,12 +208,17 @@ class WorkoutManager: ObservableObject {
         // Store warmups in UserDefaults for now until Core Data schema is updated
         let templateID = template.objectID.uriRepresentation().absoluteString
         
+        print("DEBUG: 📝 Adding warmup '\(name)' to template: \(templateID)")
+        print("DEBUG: 📝 Template name: \(template.value(forKey: "name") as? String ?? "unknown")")
+        
         // Store warmup names
         var warmupsDict = UserDefaults.standard.dictionary(forKey: "templateWarmups") as? [String: [String]] ?? [:]
         var warmups = warmupsDict[templateID] ?? []
+        print("DEBUG: 📝 Current warmups before adding: \(warmups)")
         warmups.append(name)
         warmupsDict[templateID] = warmups
         UserDefaults.standard.set(warmupsDict, forKey: "templateWarmups")
+        print("DEBUG: 📝 Warmups after adding: \(warmups)")
         
         // Store warmup durations
         var warmupDurationsDict = UserDefaults.standard.dictionary(forKey: "templateWarmupDurations") as? [String: [Int]] ?? [:]
@@ -211,16 +226,60 @@ class WorkoutManager: ObservableObject {
         durations.append(duration)
         warmupDurationsDict[templateID] = durations
         UserDefaults.standard.set(warmupDurationsDict, forKey: "templateWarmupDurations")
+        
+        // Force synchronize to ensure data is saved immediately
+        UserDefaults.standard.synchronize()
+        print("DEBUG: 📝 Warmup added and UserDefaults synchronized")
     }
     
     func getWarmups(for template: NSManagedObject) -> [String] {
-        let templateID = template.objectID.uriRepresentation().absoluteString
+        // Ensure we're working with a fresh, properly faulted template object
+        let refreshedTemplate: NSManagedObject
+        if template.managedObjectContext == nil {
+            // Template might be stale, try to get fresh object
+            guard let freshTemplate = try? viewContext.existingObject(with: template.objectID) else {
+                print("DEBUG: 🔍 ⚠️ Could not get fresh template object")
+                return []
+            }
+            refreshedTemplate = freshTemplate
+        } else {
+            // Refresh the template to ensure we have latest data
+            viewContext.refresh(template, mergeChanges: true)
+            refreshedTemplate = template
+        }
+        
+        let templateID = refreshedTemplate.objectID.uriRepresentation().absoluteString
         let warmupsDict = UserDefaults.standard.dictionary(forKey: "templateWarmups") as? [String: [String]] ?? [:]
-        return warmupsDict[templateID] ?? []
+        let warmups = warmupsDict[templateID] ?? []
+        
+        print("DEBUG: 🔍 Getting warmups for template: \(templateID)")
+        print("DEBUG: 🔍 Template name: \(refreshedTemplate.value(forKey: "name") as? String ?? "unknown")")
+        print("DEBUG: 🔍 Found \(warmups.count) warmups: \(warmups)")
+        print("DEBUG: 🔍 All template warmups in UserDefaults:")
+        for (key, value) in warmupsDict {
+            print("DEBUG: 🔍   Template: \(key), Warmups: \(value)")
+        }
+        
+        return warmups
     }
     
     func getWarmupDurations(for template: NSManagedObject) -> [Int] {
-        let templateID = template.objectID.uriRepresentation().absoluteString
+        // Ensure we're working with a fresh, properly faulted template object
+        let refreshedTemplate: NSManagedObject
+        if template.managedObjectContext == nil {
+            // Template might be stale, try to get fresh object
+            guard let freshTemplate = try? viewContext.existingObject(with: template.objectID) else {
+                print("DEBUG: 🔍 ⚠️ Could not get fresh template object for durations")
+                return []
+            }
+            refreshedTemplate = freshTemplate
+        } else {
+            // Refresh the template to ensure we have latest data
+            viewContext.refresh(template, mergeChanges: true)
+            refreshedTemplate = template
+        }
+        
+        let templateID = refreshedTemplate.objectID.uriRepresentation().absoluteString
         let durationsDict = UserDefaults.standard.dictionary(forKey: "templateWarmupDurations") as? [String: [Int]] ?? [:]
         let durations = durationsDict[templateID] ?? []
         
@@ -643,7 +702,6 @@ class WorkoutManager: ObservableObject {
     
     // Private method to fetch templates from the store
     private func fetchTemplatesFromStore() -> [NSManagedObject] {
-        print("DEBUG: Fetching all templates from store")
         let request = NSFetchRequest<NSManagedObject>(entityName: "WorkoutTemplate")
         request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
         
@@ -659,26 +717,16 @@ class WorkoutManager: ObservableObject {
             
             // Fetch with error handling
             let results = try viewContext.fetch(request)
-            print("DEBUG: Fetched \(results.count) templates")
             
             if !results.isEmpty {
-                print("DEBUG: First template name: \(results[0].value(forKey: "name") as? String ?? "nil")")
-                
                 // Verify each template has proper context and force fault relationships
                 for template in results {
                     if template.managedObjectContext != nil {
                         // Force fault the exercises relationship to ensure it's loaded
-                        if let exercises = template.value(forKey: "exercises") as? NSSet {
-                            print("DEBUG: Template '\(template.value(forKey: "name") as? String ?? "nil")' has \(exercises.count) exercises")
-                        } else {
-                            print("DEBUG: ⚠️ Template '\(template.value(forKey: "name") as? String ?? "nil")' has no exercises relationship")
-                        }
-                    } else {
-                        print("DEBUG: ⚠️ Template has nil context: \(template.objectID)")
+                        let _ = template.value(forKey: "exercises") as? NSSet
+                        // Template loaded successfully
                     }
                 }
-            } else {
-                print("DEBUG: No templates found in store")
             }
             
             // Update template count - but NOT during a view update cycle
@@ -764,7 +812,6 @@ class WorkoutManager: ObservableObject {
                             uniqueNames.insert(name)
                             print("DEBUG: Found completed exercise: \(name)")
                         } else {
-                            print("DEBUG: Skipping exercise with no completed sets: \(name)")
                         }
                     }
                 }

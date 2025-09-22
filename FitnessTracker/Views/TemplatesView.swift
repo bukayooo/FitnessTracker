@@ -110,7 +110,7 @@ struct TemplatesView: View {
             }
         }
         .sheet(isPresented: $showingNewWorkout) {
-            if let workout = newWorkoutObject, workout.isValid {
+            if let workout = newWorkoutObject {
                 WorkoutView(workout: workout, workoutManager: workoutManager)
                     .environment(\.managedObjectContext, viewContext)
                     .onDisappear {
@@ -119,7 +119,7 @@ struct TemplatesView: View {
                         showingNewWorkout = false
                     }
             } else {
-                // Handle invalid workout
+                // Handle missing workout
                 Text("Workout is no longer available")
                     .padding()
             }
@@ -225,12 +225,8 @@ struct TemplatesView: View {
     }
     
     var contentView: some View {
-        // Access these to force refresh when they change
-        let _ = refreshToggle // Remove direct workoutManager.templateCount dependency 
-        print("DEBUG: Refreshing templates view with count: \(workoutManager.templateCount)")
-        
-        // Always fetch fresh templates to ensure data is current
-        let templates = workoutManager.fetchAllTemplates()
+        // Use cached templates instead of fetching on every render
+        let templates = workoutManager.templates
         
         return Group {
             if templates.isEmpty {

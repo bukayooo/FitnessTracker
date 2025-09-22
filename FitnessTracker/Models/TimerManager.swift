@@ -41,20 +41,9 @@ class TimerManager: ObservableObject {
     
     init() {
         // Request notification authorization with more options
-        print("DEBUG: 🔔 Requesting notification authorization")
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge, .provisional]) { granted, error in
             if granted {
-                print("DEBUG: 🔔 Notification permission granted")
-                
-                // Immediately check and log current settings
-                UNUserNotificationCenter.current().getNotificationSettings { settings in
-                    print("DEBUG: 🔔 Initial notification settings:")
-                    print("DEBUG: 🔔 - Authorization status: \(settings.authorizationStatus.rawValue)")
-                    print("DEBUG: 🔔 - Alert setting: \(settings.alertSetting.rawValue)")
-                    print("DEBUG: 🔔 - Sound setting: \(settings.soundSetting.rawValue)")
-                    print("DEBUG: 🔔 - Badge setting: \(settings.badgeSetting.rawValue)")
-                    print("DEBUG: 🔔 - Notification center setting: \(settings.notificationCenterSetting.rawValue)")
-                }
+                // Notification permission granted
                 
                 // Register notification categories
                 let category = UNNotificationCategory(
@@ -65,11 +54,9 @@ class TimerManager: ObservableObject {
                 )
                 
                 UNUserNotificationCenter.current().setNotificationCategories([category])
-                print("DEBUG: 🔔 Notification categories registered")
-            } else if let error = error {
-                print("DEBUG: 🔔 ❌ Notification permission error: \(error)")
+                // Notification categories registered
             } else {
-                print("DEBUG: 🔔 ❌ Notification permission denied")
+                // Notification permission denied or error
             }
         }
         
@@ -211,7 +198,6 @@ class TimerManager: ObservableObject {
                 updateWorkoutElapsedTime()
             }
             
-            print("DEBUG: Restored workout timer state: active=\(isWorkoutTimerActive), pausedTime=\(pausedElapsedTime)")
         }
         
         // Restore rest timer state
@@ -233,19 +219,13 @@ class TimerManager: ObservableObject {
                             guard let self = self else { return }
                             if self.restTimeRemaining > 0 {
                                 self.restTimeRemaining -= 1
-                                if self.restTimeRemaining % 10 == 0 {
-                                    print("DEBUG: ⏱️ Rest timer remaining: \(self.restTimeRemaining)s")
-                                }
                             } else {
-                                print("DEBUG: 🔔 Rest timer completed")
                                 self.handleRestTimerCompletion()
                             }
                         }
                     
-                    print("DEBUG: Restored rest timer state: active=true, remaining=\(restTimeRemaining)s")
                 } else {
                     // Timer should have completed while in background
-                    print("DEBUG: Rest timer would have completed in background, stopping")
                     stopRestTimer()
                 }
             }
@@ -281,12 +261,10 @@ class TimerManager: ObservableObject {
     
     // MARK: - Rest Timer Methods
     func startRestTimer(duration: Int? = nil) {
-        print("DEBUG: 🔔 Starting rest timer with duration \(duration ?? restDuration)s")
-        initialRestDuration = duration ?? restDuration
+                initialRestDuration = duration ?? restDuration
         restTimeRemaining = initialRestDuration
         restStartTime = Date()
         isRestTimerActive = true
-        print("DEBUG: 🔔 Rest timer active state set to: \(isRestTimerActive)")
         
         // Schedule local notification for rest timer completion
         scheduleRestTimerNotification()
@@ -298,12 +276,7 @@ class TimerManager: ObservableObject {
                 if self.restTimeRemaining > 0 {
                     self.restTimeRemaining -= 1
                     
-                    // Log remaining time at intervals
-                    if self.restTimeRemaining % 10 == 0 {
-                        print("DEBUG: ⏱️ Rest timer remaining: \(self.restTimeRemaining)s")
-                    }
                 } else {
-                    print("DEBUG: 🔔 Rest timer completed naturally")
                     self.handleRestTimerCompletion()
                 }
             }
@@ -313,7 +286,6 @@ class TimerManager: ObservableObject {
     }
     
     private func handleRestTimerCompletion() {
-        print("DEBUG: 🔔 Handling rest timer completion")
         
         // Check if app is active to show in-app notification
         if let windowScene = UIApplication.shared.connectedScenes.first(where: { $0 is UIWindowScene }) as? UIWindowScene,
@@ -328,11 +300,9 @@ class TimerManager: ObservableObject {
                 )
                 
                 alert.addAction(UIAlertAction(title: "OK", style: .default) { _ in
-                    print("DEBUG: 🔔 User acknowledged rest timer completion")
                 })
                 
                 window.rootViewController?.present(alert, animated: true)
-                print("DEBUG: 🔔 Showing in-app rest timer completion alert")
             }
         }
         
@@ -341,12 +311,9 @@ class TimerManager: ObservableObject {
     }
     
     func stopRestTimer(manualStop: Bool = false) {
-        print("DEBUG: 🔔 Stopping rest timer (manual: \(manualStop))")
-        print("DEBUG: 🔔 Current state - remaining: \(restTimeRemaining)s, active: \(isRestTimerActive)")
         
         // Remove pending notifications when timer is stopped
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["restTimer"])
-        print("DEBUG: 🔔 Removed pending notifications")
         
         restTimer?.cancel()
         restTimer = nil
@@ -354,7 +321,6 @@ class TimerManager: ObservableObject {
         restTimeRemaining = 0
         restStartTime = nil
         initialRestDuration = 0
-        print("DEBUG: 🔔 Rest timer stopped - active: \(isRestTimerActive)")
         
         // Post notification that rest timer is complete with manual stop flag
         NotificationCenter.default.post(
@@ -368,11 +334,9 @@ class TimerManager: ObservableObject {
     }
     
     private func scheduleRestTimerNotification() {
-        print("DEBUG: 🔔 Beginning notification scheduling process")
         
         // Remove any existing notifications first
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["restTimer"])
-        print("DEBUG: 🔔 Removed existing pending notifications")
         
         let content = UNMutableNotificationContent()
         content.title = "Rest Timer Complete"
@@ -384,18 +348,13 @@ class TimerManager: ObservableObject {
         let timeRemaining: TimeInterval
         if let startTime = restStartTime {
             timeRemaining = TimeInterval(max(0, initialRestDuration - Int(Date().timeIntervalSince(startTime))))
-            print("DEBUG: 🔔 Calculated remaining time from start time: \(timeRemaining)s")
         } else {
             timeRemaining = TimeInterval(restTimeRemaining)
-            print("DEBUG: 🔔 Using direct remaining time: \(timeRemaining)s")
         }
         
-        print("DEBUG: 🔔 Scheduling notification for \(timeRemaining) seconds from now")
-        print("DEBUG: 🔔 Initial duration was: \(initialRestDuration)s")
         
         // Only schedule if we have time remaining
         guard timeRemaining > 0 else {
-            print("DEBUG: 🔔 No time remaining, skipping notification scheduling")
             return
         }
         
@@ -405,64 +364,63 @@ class TimerManager: ObservableObject {
         
         // Check current notification settings before scheduling
         UNUserNotificationCenter.current().getNotificationSettings { settings in
-            print("DEBUG: 🔔 Pre-schedule notification settings check:")
-            print("DEBUG: 🔔 - Authorization status: \(settings.authorizationStatus.rawValue)")
-            print("DEBUG: 🔔 - Alert setting: \(settings.alertSetting.rawValue)")
-            print("DEBUG: 🔔 - Sound setting: \(settings.soundSetting.rawValue)")
-            print("DEBUG: 🔔 - Notification center setting: \(settings.notificationCenterSetting.rawValue)")
             
             if settings.authorizationStatus == .authorized {
                 UNUserNotificationCenter.current().add(request) { error in
-                    if let error = error {
-                        print("DEBUG: 🔔 ❌ Error scheduling notification: \(error)")
+                    if error != nil {
+                        // Error scheduling notification
                     } else {
-                        print("DEBUG: 🔔 ✅ Notification scheduled successfully")
+                        // Notification scheduled successfully
                         
                         // Verify the scheduled notification
                         UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
-                            print("DEBUG: 🔔 Pending notifications after scheduling: \(requests.count)")
                             for request in requests {
-                                if let trigger = request.trigger as? UNTimeIntervalNotificationTrigger {
-                                    print("DEBUG: 🔔 Pending notification details:")
-                                    print("DEBUG: 🔔 - Identifier: \(request.identifier)")
-                                    print("DEBUG: 🔔 - Time interval: \(trigger.timeInterval)s")
-                                    print("DEBUG: 🔔 - Next trigger date: \(trigger.nextTriggerDate()?.description ?? "unknown")")
+                                if request.trigger is UNTimeIntervalNotificationTrigger {
                                 }
                             }
                         }
                     }
                 }
             } else {
-                print("DEBUG: 🔔 ❌ Cannot schedule notification - not authorized (status: \(settings.authorizationStatus.rawValue))")
             }
         }
     }
     
     // MARK: - Warmup Timer Methods
     func startWarmupTimer(warmups: [String], durations: [Int] = []) {
-        self.warmups = warmups
-        if warmups.isEmpty {
-            print("DEBUG: ⏱️ No warmups to start timer with")
-            return
+        print("DEBUG: 🟢 startWarmupTimer() called with \(warmups.count) warmups: \(warmups)")
+        DispatchQueue.main.async {
+            self.warmups = warmups
+            print("DEBUG: 🟢 TimerManager.warmups set to: \(self.warmups) on main thread")
+            
+            if warmups.isEmpty {
+                print("DEBUG: ⏱️ Starting warmup timer with no warmups (empty state)")
+                self.warmupDurations = []
+                self.currentWarmupIndex = 0
+                self.warmupTimeRemaining = 0
+                self.isWarmupTimerActive = true
+                self.isWarmupTimerPaused = true
+                return
+            }
+            
+            print("DEBUG: ⏱️ Starting warmup timer with \(warmups.count) warmups")
+            print("DEBUG: ⏱️ Provided durations: \(durations)")
+            
+            // Store the durations, or use defaults if none provided
+            if durations.isEmpty || durations.count != warmups.count {
+                print("DEBUG: ⏱️ Using default durations because: isEmpty=\(durations.isEmpty), count mismatch=\(durations.count != warmups.count)")
+                self.warmupDurations = Array(repeating: self.defaultWarmupDuration, count: warmups.count)
+            } else {
+                print("DEBUG: ⏱️ Using custom durations: \(durations)")
+                self.warmupDurations = durations
+            }
+            
+            self.currentWarmupIndex = 0
+            self.warmupTimeRemaining = self.warmupDurations[0]
+            self.isWarmupTimerActive = true
+            self.isWarmupTimerPaused = true
+            print("DEBUG: ⏱️ First warmup '\(warmups[0])' ready to start with duration: \(self.warmupTimeRemaining)s")
         }
-        
-        print("DEBUG: ⏱️ Starting warmup timer with \(warmups.count) warmups")
-        print("DEBUG: ⏱️ Provided durations: \(durations)")
-        
-        // Store the durations, or use defaults if none provided
-        if durations.isEmpty || durations.count != warmups.count {
-            print("DEBUG: ⏱️ Using default durations because: isEmpty=\(durations.isEmpty), count mismatch=\(durations.count != warmups.count)")
-            self.warmupDurations = Array(repeating: defaultWarmupDuration, count: warmups.count)
-        } else {
-            print("DEBUG: ⏱️ Using custom durations: \(durations)")
-            self.warmupDurations = durations
-        }
-        
-        currentWarmupIndex = 0
-        warmupTimeRemaining = self.warmupDurations[0]
-        isWarmupTimerActive = true
-        isWarmupTimerPaused = true
-        print("DEBUG: ⏱️ First warmup '\(warmups[0])' ready to start with duration: \(warmupTimeRemaining)s")
     }
     
     func startCurrentWarmup() {
@@ -501,6 +459,9 @@ class TimerManager: ObservableObject {
     }
     
     func stopWarmupTimer() {
+        print("DEBUG: 🛑 stopWarmupTimer() called - clearing \(warmups.count) warmups")
+        print("DEBUG: 🛑 Current warmups before clearing: \(warmups)")
+        
         warmupTimer?.cancel()
         warmupTimer = nil
         isWarmupTimerActive = false
@@ -512,10 +473,11 @@ class TimerManager: ObservableObject {
         
         warmups = []
         warmupDurations = []
+        print("DEBUG: 🛑 Warmups cleared, new count: \(warmups.count)")
     }
     
     var currentWarmupName: String? {
-        guard currentWarmupIndex < warmups.count else { return nil }
+        guard !warmups.isEmpty && currentWarmupIndex < warmups.count else { return nil }
         return warmups[currentWarmupIndex]
     }
     

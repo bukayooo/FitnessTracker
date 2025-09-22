@@ -192,6 +192,7 @@ struct EmptyStateView: View {
 // MARK: - Warmup Timer View
 struct WarmupTimerView: View {
     @ObservedObject var timerManager: TimerManager
+    @State private var hasLoggedRender = false
     
     var body: some View {
         ZStack {
@@ -203,71 +204,117 @@ struct WarmupTimerView: View {
                     .font(.system(size: 26, weight: .bold))
                     .foregroundColor(.primary)
                 
-                if let warmupName = timerManager.currentWarmupName {
-                    Text(warmupName)
-                        .font(.system(size: 22, weight: .semibold))
-                        .foregroundColor(.primary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
-                }
-                
-                Text("\(timerManager.warmupTimeRemaining)")
-                    .font(.system(size: 64, weight: .bold, design: .rounded))
-                    .foregroundColor(.fitnessBronze)
-                    .monospacedDigit()
-                
-                HStack(spacing: 16) {
+                // Show message when no warmups are available
+                if timerManager.warmups.isEmpty {
+                    let _ = {
+                        if !hasLoggedRender {
+                            print("DEBUG: 🔴 WarmupTimerView rendering with EMPTY warmups array. TimerManager instance: \(ObjectIdentifier(timerManager)), warmups count: \(timerManager.warmups.count)")
+                            hasLoggedRender = true
+                        }
+                    }()
+                    VStack(spacing: 16) {
+                        Image(systemName: "figure.walk")
+                            .font(.system(size: 48))
+                            .foregroundColor(.fitnessBronze)
+                        
+                        Text("No warmups configured")
+                            .font(.system(size: 20, weight: .medium))
+                            .foregroundColor(.primary)
+                        
+                        Text("This template doesn't have any warmups set up yet. You can add them in the template editor.")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                    }
+                    .padding(.vertical, 40)
+                    
                     Button(action: {
                         timerManager.stopWarmupTimer()
                     }) {
-                        Text("Skip All")
+                        Text("Continue to Workout")
                             .font(.headline)
                             .fontWeight(.semibold)
                             .foregroundColor(.white)
                             .padding(.vertical, 12)
                             .padding(.horizontal, 24)
-                            .background(Color.fitnessError)
+                            .background(Color.fitnessPrimary)
                             .cornerRadius(12)
                     }
+                } else {
+                    let _ = {
+                        if !hasLoggedRender {
+                            print("DEBUG: 🟢 WarmupTimerView rendering with warmups available. TimerManager instance: \(ObjectIdentifier(timerManager)), warmups count: \(timerManager.warmups.count), warmups: \(timerManager.warmups)")
+                            hasLoggedRender = true
+                        }
+                    }()
+                    // Show warmup content when warmups are available
+                    if let warmupName = timerManager.currentWarmupName {
+                        Text(warmupName)
+                            .font(.system(size: 22, weight: .semibold))
+                            .foregroundColor(.primary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                    }
                     
-                    if timerManager.isWarmupTimerPaused {
+                    Text("\(timerManager.warmupTimeRemaining)")
+                        .font(.system(size: 64, weight: .bold, design: .rounded))
+                        .foregroundColor(.fitnessBronze)
+                        .monospacedDigit()
+                    
+                    HStack(spacing: 16) {
                         Button(action: {
-                            timerManager.startCurrentWarmup()
+                            timerManager.stopWarmupTimer()
                         }) {
-                            Text("Start")
+                            Text("Skip All")
                                 .font(.headline)
                                 .fontWeight(.semibold)
                                 .foregroundColor(.white)
                                 .padding(.vertical, 12)
                                 .padding(.horizontal, 24)
-                                .background(Color.fitnessSuccess)
+                                .background(Color.fitnessError)
                                 .cornerRadius(12)
                         }
-                    } else {
-                        Button(action: {
-                            timerManager.moveToNextWarmup()
-                        }) {
-                            Text(timerManager.isLastWarmup ? "Finish" : "Next")
-                                .font(.headline)
-                                .fontWeight(.semibold)
-                                .foregroundColor(.white)
-                                .padding(.vertical, 12)
-                                .padding(.horizontal, 24)
-                                .background(Color.fitnessPrimary)
-                                .cornerRadius(12)
+                        
+                        if timerManager.isWarmupTimerPaused {
+                            Button(action: {
+                                timerManager.startCurrentWarmup()
+                            }) {
+                                Text("Start")
+                                    .font(.headline)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.white)
+                                    .padding(.vertical, 12)
+                                    .padding(.horizontal, 24)
+                                    .background(Color.fitnessSuccess)
+                                    .cornerRadius(12)
+                            }
+                        } else {
+                            Button(action: {
+                                timerManager.moveToNextWarmup()
+                            }) {
+                                Text(timerManager.isLastWarmup ? "Finish" : "Next")
+                                    .font(.headline)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.white)
+                                    .padding(.vertical, 12)
+                                    .padding(.horizontal, 24)
+                                    .background(Color.fitnessPrimary)
+                                    .cornerRadius(12)
+                            }
                         }
                     }
-                }
-                
-                Text("Warmup \(timerManager.currentWarmupIndex + 1) of \(timerManager.warmups.count)")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                
-                if timerManager.isWarmupTimerPaused {
-                    Text("Get ready for this warmup!")
+                    
+                    Text("Warmup \(timerManager.currentWarmupIndex + 1) of \(timerManager.warmups.count)")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
-                        .padding(.top, 8)
+                    
+                    if timerManager.isWarmupTimerPaused {
+                        Text("Get ready for this warmup!")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .padding(.top, 8)
+                    }
                 }
             }
             .padding()

@@ -8,7 +8,7 @@ struct WorkoutView: View {
     @Environment(\.scenePhase) private var scenePhase
     
     @ObservedObject var workoutManager: WorkoutManager
-    @ObservedObject var timerManager = TimerManager()
+    @StateObject var timerManager = TimerManager()
     
     let workout: NSManagedObject
     
@@ -25,16 +25,16 @@ struct WorkoutView: View {
     @State private var isShowingWarmupTimer = false
     @State private var warmups: [String] = []
     @State private var warmupDurations: [Int] = []
+    @State private var warmupsLoaded = false
+    @State private var hasLoggedOnAppear = false
+    @State private var hasLoggedMainWorkoutAppear = false
+    @State private var hasLoggedWarmupTimerAppear = false
+    @State private var hasLoggedNotification = false
+    @State private var hasLoggedWorkoutTimer = false
+    @State private var hasLoggedWarmupStart = false
+    @State private var hasLoggedWarmupLoading = false
     
     init(workout: NSManagedObject, workoutManager: WorkoutManager) {
-        print("DEBUG: ⭐️ WorkoutView initializing with entity: \(workout.entity.name ?? "unknown")")
-        print("DEBUG: ⭐️ Workout object ID: \(workout.objectID)")
-        
-        let attributes = workout.entity.attributesByName
-        print("DEBUG: ⭐️ Available attributes: \(attributes.keys.joined(separator: ", "))")
-        
-        let relationships = workout.entity.relationshipsByName
-        print("DEBUG: ⭐️ Available relationships: \(relationships.keys.joined(separator: ", "))")
         
         self.workout = workout
         self._workoutManager = ObservedObject(wrappedValue: workoutManager)
@@ -43,10 +43,8 @@ struct WorkoutView: View {
         self._isTemplateView = State(initialValue: isTemplate)
         
         if isTemplate {
-            print("DEBUG: ⭐️ Initializing as template with name: \(workout.value(forKey: "name") as? String ?? "nil")")
             self._editedTemplateName = State(initialValue: workout.value(forKey: "name") as? String ?? "Untitled")
         } else {
-            print("DEBUG: ⭐️ Initializing as workout")
             if workout.entity.relationshipsByName["template"] != nil && workout.value(forKey: "template") != nil {
                 if let template = workout.value(forKey: "template") as? NSManagedObject {
                     self._editedTemplateName = State(initialValue: template.value(forKey: "name") as? String ?? "Workout")
@@ -57,58 +55,38 @@ struct WorkoutView: View {
                 self._editedTemplateName = State(initialValue: "Workout")
             }
         }
-        
-        print("DEBUG: ⭐️ isTemplateView = \(workout.entity.name == "WorkoutTemplate")")
     }
     
     private var templateName: String {
-        print("DEBUG: ⭐️ Getting template name for workout of type: \(type(of: workout))")
-        print("DEBUG: ⭐️ Entity name: \(workout.entity.name ?? "unknown")")
-        
         switch workout.entity.name {
         case "Workout":
             if let workoutObj = workout as? Workout {
-                let name = workoutObj.templateName
-                print("DEBUG: ⭐️ Got template name: \(name)")
-                return name
+                return workoutObj.templateName
             }
             if workout.entity.relationshipsByName["template"] != nil {
                 if let template = workout.value(forKey: "template") as? NSManagedObject {
-                    let name = template.value(forKey: "name") as? String ?? "Workout"
-                    print("DEBUG: ⭐️ Retrieved template name via KVC: \(name)")
-                    return name
+                    return template.value(forKey: "name") as? String ?? "Workout"
                 }
             }
         case "WorkoutTemplate":
             if let templateObj = workout as? WorkoutTemplate {
-                let name = templateObj.templateName
-                print("DEBUG: ⭐️ Got template name: \(name)")
-                return name
+                return templateObj.templateName
             }
-            let name = workout.value(forKey: "name") as? String ?? "Workout"
-            print("DEBUG: ⭐️ Retrieved template name via KVC: \(name)")
-            return name
+            return workout.value(forKey: "name") as? String ?? "Workout"
         default:
             break
         }
-        print("DEBUG: ⭐️ Failed to get template name, defaulting to 'Workout'")
         return "Workout"
     }
     
     private var exercises: [NSManagedObject] {
-        print("DEBUG: ⭐️ Getting exercises for object of type: \(type(of: workout))")
-        print("DEBUG: ⭐️ Entity name: \(workout.entity.name ?? "unknown")")
-        
         switch workout.entity.name {
         case "Workout":
             if let workoutObj = workout as? Workout {
-                let exArray = workoutObj.exerciseArray
-                print("DEBUG: ⭐️ Found \(exArray.count) exercises from typed object")
-                return exArray
+                return workoutObj.exerciseArray
             }
             if let exercisesSet = workout.value(forKey: "exercises") as? NSSet {
                 let exercises = exercisesSet.allObjects as? [NSManagedObject] ?? []
-                print("DEBUG: ⭐️ Found \(exercises.count) exercises via KVC for Workout")
                 return exercises.sorted {
                     let order1 = $0.value(forKey: "order") as? Int16 ?? 0
                     let order2 = $1.value(forKey: "order") as? Int16 ?? 0
@@ -117,16 +95,10 @@ struct WorkoutView: View {
             }
         case "WorkoutTemplate":
             if let templateObj = workout as? WorkoutTemplate {
-                let exArray = templateObj.exerciseArray
-                print("DEBUG: ⭐️ Found \(exArray.count) exercises from typed template")
-                return exArray
+                return templateObj.exerciseArray
             }
             if let exercisesSet = workout.value(forKey: "exercises") as? NSSet {
                 let exercises = exercisesSet.allObjects as? [NSManagedObject] ?? []
-                print("DEBUG: ⭐️ Found \(exercises.count) exercises via KVC for WorkoutTemplate")
-                for (index, ex) in exercises.enumerated() {
-                    print("DEBUG: ⭐️   Exercise \(index): \(ex.value(forKey: "name") as? String ?? "unnamed")")
-                }
                 return exercises.sorted {
                     let order1 = $0.value(forKey: "order") as? Int16 ?? 0
                     let order2 = $1.value(forKey: "order") as? Int16 ?? 0
@@ -136,7 +108,6 @@ struct WorkoutView: View {
         default:
             break
         }
-        print("DEBUG: ⭐️ No exercises found")
         return []
     }
     
@@ -254,17 +225,49 @@ struct WorkoutView: View {
         ZStack {
             if isShowingWarmupTimer {
                 WarmupTimerView(timerManager: timerManager)
-                    .onDisappear {
-                        // When warmup timer view disappears, stop its timer
-                        timerManager.stopWarmupTimer()
+                    .onAppear {
+                        if !hasLoggedWarmupTimerAppear {
+                            print("DEBUG: 🎯 WarmupTimerView appeared")
+                            hasLoggedWarmupTimerAppear = true
+                        }
                     }
             } else {
                 mainWorkoutView
+                    .onAppear {
+                        if !hasLoggedMainWorkoutAppear {
+                            print("DEBUG: 🎯 mainWorkoutView appeared")
+                            hasLoggedMainWorkoutAppear = true
+                        }
+                    }
             }
         }
         .onAppear {
-            // Load warmups when the view appears
-            loadWarmupsAndStartTimerIfNeeded()
+            if !hasLoggedOnAppear {
+                print("DEBUG: 🚀 WorkoutView.onAppear called for \(isTemplateView ? "template" : "workout")")
+                print("DEBUG: 🚀 warmupsLoaded: \(warmupsLoaded), isTemplateView: \(isTemplateView)")
+                hasLoggedOnAppear = true
+            }
+            // Load warmups when the view appears for actual workouts
+            if !isTemplateView && !warmupsLoaded {
+                if !hasLoggedOnAppear {
+                    print("DEBUG: 🚀 About to call loadWarmupsAndStartTimerIfNeeded from onAppear")
+                }
+                loadWarmupsAndStartTimerIfNeeded()
+                warmupsLoaded = true
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("StartWorkoutFromTemplate"))) { notification in
+            if !hasLoggedNotification {
+                print("DEBUG: 🎯 Received StartWorkoutFromTemplate notification")
+                hasLoggedNotification = true
+            }
+            if !isTemplateView && !warmupsLoaded {
+                if !hasLoggedNotification {
+                    print("DEBUG: 🎯 About to call loadWarmupsAndStartTimerIfNeeded from notification")
+                }
+                loadWarmupsAndStartTimerIfNeeded()
+                warmupsLoaded = true
+            }
         }
         .onChange(of: scenePhase) { _, newPhase in
             switch newPhase {
@@ -393,8 +396,17 @@ struct WorkoutView: View {
                 Text("Have you completed all your exercises? The workout will be saved to your history.")
             }
             .onAppear {
-                if !isTemplateView {
+                if !isTemplateView && !isShowingWarmupTimer {
+                    if !hasLoggedWorkoutTimer {
+                        print("DEBUG: 🏃‍♂️ Starting workout timer (not in warmup mode)")
+                        hasLoggedWorkoutTimer = true
+                    }
                     timerManager.startWorkoutTimer()
+                } else if isShowingWarmupTimer {
+                    if !hasLoggedWorkoutTimer {
+                        print("DEBUG: 🏃‍♂️ Skipping workout timer start - in warmup mode")
+                        hasLoggedWorkoutTimer = true
+                    }
                 }
             }
             .sheet(isPresented: $showingAddExercise) {
@@ -449,11 +461,14 @@ struct WorkoutView: View {
     }
     
     private func loadWarmupsAndStartTimerIfNeeded() {
+        print("DEBUG: ===== WARMUP LOADING CALLED =====")
         if !isTemplateView {
             print("DEBUG: 🏋️‍♂️ Attempting to load warmups for workout")
             // Only show warmups when starting an actual workout (not when viewing a template)
             if let templateObj = workout.value(forKey: "template") as? NSManagedObject {
                 print("DEBUG: 🏋️‍♂️ Found template object: \(templateObj.objectID)")
+                print("DEBUG: 🏋️‍♂️ Template URI: \(templateObj.objectID.uriRepresentation().absoluteString)")
+                print("DEBUG: 🏋️‍♂️ Template name: \(templateObj.value(forKey: "name") as? String ?? "unknown")")
                 
                 // Get warmups from the workout's template
                 warmups = workoutManager.getWarmups(for: templateObj)
@@ -469,10 +484,21 @@ struct WorkoutView: View {
                 }
                 
                 if !warmups.isEmpty {
-                    print("DEBUG: 🏋️‍♂️ Starting warmup timer with durations: \(warmupDurations)")
+                    if !hasLoggedWarmupLoading {
+                        print("DEBUG: 🏋️‍♂️ Starting warmup timer with durations: \(warmupDurations)")
+                        print("DEBUG: 🔍 WorkoutView TimerManager instance: \(ObjectIdentifier(timerManager))")
+                        hasLoggedWarmupLoading = true
+                    }
                     // Start warmup timer with loaded warmups and durations
                     timerManager.startWarmupTimer(warmups: warmups, durations: warmupDurations)
-                    isShowingWarmupTimer = true
+                    if !hasLoggedWarmupStart {
+                        print("DEBUG: 🎯 Setting isShowingWarmupTimer = true")
+                        isShowingWarmupTimer = true
+                        print("DEBUG: 🎯 isShowingWarmupTimer set to: \(isShowingWarmupTimer)")
+                        hasLoggedWarmupStart = true
+                    } else {
+                        isShowingWarmupTimer = true
+                    }
                     
                     // Listen for when all warmups are completed
                     NotificationCenter.default.addObserver(
@@ -480,10 +506,26 @@ struct WorkoutView: View {
                         object: nil,
                         queue: .main
                     ) { _ in
+                        print("DEBUG: 🏃‍♂️ Warmups completed, starting workout timer")
                         isShowingWarmupTimer = false
+                        timerManager.startWorkoutTimer()
                     }
                 } else {
-                    print("DEBUG: 🏋️‍♂️ No warmups found, skipping timer")
+                    print("DEBUG: 🏋️‍♂️ No warmups found, showing empty warmup screen for user awareness")
+                    // Show warmup timer with empty warmups so user knows warmups are supported
+                    timerManager.startWarmupTimer(warmups: [], durations: [])
+                    isShowingWarmupTimer = true
+                    
+                    // Listen for when warmup timer is dismissed
+                    NotificationCenter.default.addObserver(
+                        forName: NSNotification.Name("WarmupTimerComplete"),
+                        object: nil,
+                        queue: .main
+                    ) { _ in
+                        print("DEBUG: 🏃‍♂️ Empty warmup timer dismissed, starting workout timer")
+                        isShowingWarmupTimer = false
+                        timerManager.startWorkoutTimer()
+                    }
                 }
             } else {
                 print("DEBUG: 🏋️‍♂️ No template found for this workout")
@@ -508,12 +550,10 @@ struct ExerciseCard: View {
     @State private var activeSetIndex: Int?
     
     private var exerciseName: String {
-        print("DEBUG: Getting exercise name for type: \(type(of: exercise)), entity: \(exercise.entity.name ?? "unknown")")
         return exercise.value(forKey: "name") as? String ?? "Unknown Exercise"
     }
     
     private var sets: [NSManagedObject] {
-        print("DEBUG: Getting sets for exercise type: \(type(of: exercise)), entity: \(exercise.entity.name ?? "unknown")")
         
         if isTemplateView || exercise.entity.name == "Exercise" {
             print("DEBUG: In template view mode, not showing sets")
