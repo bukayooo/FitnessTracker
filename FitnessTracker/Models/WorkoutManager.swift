@@ -418,8 +418,9 @@ class WorkoutManager: ObservableObject {
                 // Find previous workout data
                 let previousSetsCount = self.getLastWorkoutSetsCount(for: exercise)
                 let setsToCreate = max(Int(exercise.value(forKey: "sets") as? Int16 ?? 3), previousSetsCount)
-                
-                print("DEBUG: Creating \(setsToCreate) sets for exercise: \(exercise.value(forKey: "name") as? String ?? "unknown")")
+
+                let exerciseName = exercise.value(forKey: "name") as? String ?? "unknown"
+                print("DEBUG: 📊 Creating \(setsToCreate) sets for exercise: \(exerciseName) (previous workout had \(previousSetsCount) sets)")
                 
                 // Create sets
                 for setIndex in 0..<setsToCreate {
@@ -441,11 +442,14 @@ class WorkoutManager: ObservableObject {
                         if let previousData = self.getLastWorkoutSetData(for: exercise, setNumber: Int16(setIndex)) {
                             exerciseSet.setValue(previousData.reps, forKey: "reps")
                             exerciseSet.setValue(previousData.weight, forKey: "weight")
-                            
+                            print("DEBUG: 📊 ✅ Loaded history for \(exerciseName) set \(setIndex): \(previousData.reps) reps @ \(previousData.weight) lbs")
+
                             // Mark as complete if we have valid reps (greater than 0) and isComplete exists
                             if previousData.reps > 0 && setEntity.propertiesByName["isComplete"] != nil {
                                 exerciseSet.setValue(true, forKey: "isComplete")
                             }
+                        } else {
+                            print("DEBUG: 📊 ⚠️ No history found for \(exerciseName) set \(setIndex), using defaults")
                         }
                     }
                 }
@@ -598,8 +602,9 @@ class WorkoutManager: ObservableObject {
     }
     
     private func getLastWorkoutSetsCount(for exercise: NSManagedObject) -> Int {
+        // Only fetch workout exercises from completed workouts (duration > 0)
         let fetchRequest = NSFetchRequest<NSManagedObject>(entityName: "WorkoutExercise")
-        fetchRequest.predicate = NSPredicate(format: "exercise == %@", exercise)
+        fetchRequest.predicate = NSPredicate(format: "exercise == %@ AND workout.duration > 0", exercise)
         fetchRequest.sortDescriptors = [NSSortDescriptor(key: "workout.date", ascending: false)]
         fetchRequest.fetchLimit = 1
         
@@ -621,16 +626,21 @@ class WorkoutManager: ObservableObject {
     func getLastWorkoutSetData(for exercise: NSManagedObject, setNumber: Int16) -> (reps: Int16, weight: Double)? {
         // Get the exercise name
         let exerciseName = exercise.value(forKey: "name") as? String ?? ""
-        print("DEBUG: Looking for previous data for exercise: \(exerciseName), set: \(setNumber)")
-        
+        print("DEBUG: 📊 Looking for previous data for exercise: \(exerciseName), set: \(setNumber)")
+
         // First, find the most recent completed workout containing this exercise
+        // IMPORTANT: Only fetch COMPLETED workouts (duration > 0) to exclude:
+        // 1. The current workout being created (duration = 0)
+        // 2. Any abandoned/incomplete workouts from the past
         let workoutRequest = NSFetchRequest<NSManagedObject>(entityName: "Workout")
+        workoutRequest.predicate = NSPredicate(format: "duration > 0")
         workoutRequest.sortDescriptors = [NSSortDescriptor(key: "date", ascending: false)]
-        workoutRequest.fetchLimit = 5 // Check the last 5 workouts to find relevant data
+        workoutRequest.fetchLimit = 10 // Check the last 10 completed workouts to find relevant data
         
         do {
             let recentWorkouts = try viewContext.fetch(workoutRequest)
-            
+            print("DEBUG: 📊 Found \(recentWorkouts.count) completed workouts to search through")
+
             // Look through recent workouts for matching exercise data
             for workout in recentWorkouts {
                 if let exercises = workout.value(forKey: "exercises") as? NSSet {
@@ -639,22 +649,25 @@ class WorkoutManager: ObservableObject {
                         
                         // If we found a matching exercise name
                         if currentExName == exerciseName {
-                            print("DEBUG: Found matching exercise '\(exerciseName)' in previous workout")
-                            
+                            let workoutDate = workout.value(forKey: "date") as? Date ?? Date()
+                            print("DEBUG: 📊 Found matching exercise '\(exerciseName)' in workout from \(workoutDate)")
+
                             // Get sets for this exercise
                             if let sets = workoutExercise.value(forKey: "sets") as? NSSet {
                                 // Find matching set by number
                                 for case let setObj as NSManagedObject in sets {
                                     let currentSetNum = setObj.value(forKey: "setNumber") as? Int16 ?? -1
-                                    
+
                                     if currentSetNum == setNumber {
                                         let reps = setObj.value(forKey: "reps") as? Int16 ?? 0
                                         let weight = setObj.value(forKey: "weight") as? Double ?? 0.0
-                                        
+
                                         // Only return non-zero values
                                         if reps > 0 || weight > 0 {
-                                            print("DEBUG: Found previous data: \(reps) reps, \(weight) weight")
+                                            print("DEBUG: 📊 ✅ Found previous data for set \(setNumber): \(reps) reps, \(weight) lbs")
                                             return (reps, weight)
+                                        } else {
+                                            print("DEBUG: 📊 ⚠️ Found set \(setNumber) but data is 0/0, continuing search...")
                                         }
                                     }
                                 }
@@ -663,8 +676,8 @@ class WorkoutManager: ObservableObject {
                     }
                 }
             }
-            
-            print("DEBUG: No previous non-zero data found for \(exerciseName), set \(setNumber)")
+
+            print("DEBUG: 📊 ❌ No previous non-zero data found for \(exerciseName), set \(setNumber)")
             return nil
         } catch {
             print("ERROR: Failed to fetch previous workout data: \(error)")
