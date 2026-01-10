@@ -1,0 +1,22 @@
+---
+description: Description: Defines core coding standards for clean, reliable code, covering indentation, closure syntax, optional safety, function design, debugging via reflection and logs, and build troubleshooting. When/Why to Use: Apply when writing, refactoring, or debugging code to maintain consistency, avoid common errors, and streamline problem-solving without relying on Xcode simulator runs.
+globs: *.swift
+alwaysApply: true
+---
+
+# General Coding Preferences
+- Use 4 spaces for indentation
+- Don't be lazy. Be thorough in your work
+- Prefer trailing closures for better readability
+- Avoid force unwrapping optionals; use optional binding or guard statements
+- Keep functions short and focused on a single task
+- When given a bug or told about something that is not working correctly, first reflect on 5-7 different possible sources of the problem, distill those down to 1-2 most likely sources, and then add logs to validate your assumptions before we move onto implementing the actual code fix
+- Sometimes error messages/linter errors don't go away until I clean the build; it doesn't mean you have to keep trying to "fix" a problem that already may have been fixed
+- Please keep in mind that I don't run projects in the simulator through XCode; I use sweetpad right on here. Don't try to launch XCode for me.
+- Avoid redeclaring methods or properties with the same name across protocols and classes
+- Be careful with extensions that reference their own properties or methods
+- When fixing compiler errors, a clean build is often necessary to clear any stale artifacts
+- When doing a complete rebuild/rewrite of something, obviously keep the *exact* same styling as before in your new implementation. Not a thing must look different. Don't be lazy.
+
+
+

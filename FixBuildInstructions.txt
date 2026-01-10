@@ -1,0 +1,44 @@
+# Instructions to Fix Build Error
+
+The main build error is in WorkoutView.swift line 778:
+Error: "cannot use mutating member on immutable value: 'self' is immutable"
+
+## Fix for WorkoutView.swift:
+
+1. Open WorkoutView.swift
+2. Find the SetRow struct (around line 670)
+3. Replace the Button action for the "Complete button" with this code:
+
+```swift
+Button {
+    // Direct CoreData and UserDefaults approach
+    let isCurrentlyComplete: Bool
+    if set.entity.propertiesByName["isComplete"] != nil {
+        isCurrentlyComplete = set.value(forKey: "isComplete") as? Bool ?? false
+        // Toggle directly in Core Data
+        set.setValue(!isCurrentlyComplete, forKey: "isComplete")
+    } else {
+        // Use UserDefaults as fallback 
+        isCurrentlyComplete = UserDefaults.standard.bool(forKey: "set_complete_\(setId)")
+        UserDefaults.standard.set(!isCurrentlyComplete, forKey: "set_complete_\(setId)")
+    }
+    
+    // Save changes if possible
+    do {
+        try set.managedObjectContext?.save()
+    } catch {
+        print("DEBUG: Error saving set completion state: \(error)")
+    }
+    
+    // If newly marked as complete, activate next set
+    if !isCurrentlyComplete && set.entity.name != "TemplateSet" {
+        activateNextSet()
+    }
+} label: {
+    Image(systemName: isSetComplete ? "checkmark.circle.fill" : "circle")
+        .foregroundColor(isActive ? .green : .secondary)
+        .font(.title2)
+}
+```
+
+This will fix the build error by avoiding the use of the computed property's setter and instead directly manipulating Core Data and UserDefaults. 

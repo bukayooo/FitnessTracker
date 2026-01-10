@@ -1,0 +1,11 @@
+---
+description: Description: Covers modern Swift concurrency practices for async operations. When/Why to Use: Apply when coding or debugging asynchronous tasks to keep them safe and efficient.
+globs: *.swift
+alwaysApply: false
+---
+
+# Concurrency
+- Prefer async/await for asynchronous code
+- Use Task for running concurrent operations
+- Ensure UI updates are on the main thread: DispatchQueue.main.async { ... }
+

@@ -1,0 +1,12 @@
+---
+description: Description: Outlines best practices for crafting SwiftUI interfaces, focusing on state management and view composition. When/Why to Use: Use when building or tweaking UI components to ensure they’re efficient and align with SwiftUI standards.
+globs: *.swift
+alwaysApply: false
+---
+
+# SwiftUI Guidelines
+- Use @State for mutable state in views
+- Use @ObservedObject for view models
+- Prefer composing views with modifiers over wrapping in containers
+- Use @Environment for accessing shared data like color schemes
+

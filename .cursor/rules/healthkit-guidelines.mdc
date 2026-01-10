@@ -1,0 +1,32 @@
+---
+description: Description: Guides HealthKit integration with a focus on privacy and data access. When/Why to Use: Follow when adding or modifying health features to comply with privacy rules and handle data correctly.
+globs: *.swift
+alwaysApply: false
+---
+
+# HealthKit Guidelines
+- Always request user authorization before accessing health data
+- Use HKHealthStore for all HealthKit operations
+- Handle authorization status appropriately
+- Use HKQuery for fetching health data
+- Ensure privacy by specifying only necessary data types
+
+# Example: Requesting HealthKit Authorization
+let healthStore = HKHealthStore()
+let typesToRead: Set = [HKObjectType.quantityType(forIdentifier: .stepCount)!]
+healthStore.requestAuthorization(toShare: nil, read: typesToRead) { success, error in
+    if success {
+        // Proceed with health data queries
+    }
+}
+
+# Example: Fetching Step Count
+let stepType = HKQuantityType.quantityType(forIdentifier: .stepCount)!
+let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: .strictStartDate)
+let query = HKStatisticsQuery(quantityType: stepType, quantitySamplePredicate: predicate, options: .cumulativeSum) { _, result, error in
+    guard let result = result, let sum = result.sumQuantity() else {
+        return
+    }
+    let steps = sum.doubleValue(for: .count())
+    // Update UI or model
+}

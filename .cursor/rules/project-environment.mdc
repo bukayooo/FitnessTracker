@@ -1,0 +1,10 @@
+---
+description: Description: Specifies project tooling versions. When/Why to Use: Reference during development or debugging to ensure compatibility and address version-related issues.
+globs: *.swift
+alwaysApply: false
+---
+
+# Project Environment
+- Swift version: 6.0.3
+- Xcode version: 16.2
+

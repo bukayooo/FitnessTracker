@@ -1,0 +1,33 @@
+---
+description: Description: Provides rules for CoreData setup and management in SwiftUI apps. When/Why to Use: Use when working on data persistence to ensure robust and optimized storage logic.
+globs: *.swift
+alwaysApply: false
+---
+
+# CoreData Guidelines
+- Use NSPersistentContainer for managing the CoreData stack
+- Perform CoreData operations on the appropriate context (main or background)
+- Use @FetchRequest or manual NSFetchRequest for fetching data in SwiftUI
+- Handle errors using do-catch blocks for save operations
+- Prefer batch operations for efficiency with large datasets
+
+# Example: Setting Up Persistent Container
+lazy var persistentContainer: NSPersistentContainer = {
+    let container = NSPersistentContainer(name: "FitnessTracker")
+    container.loadPersistentStores { description, error in
+        if let error = error {
+            fatalError("Unable to load persistent stores: \(error)")
+        }
+    }
+    return container
+}()
+
+# Example: Fetching Data with NSFetchRequest
+let context = persistentContainer.viewContext
+let fetchRequest: NSFetchRequest<Workout> = Workout.fetchRequest()
+do {
+    let workouts = try context.fetch(fetchRequest)
+    // Use fetched workouts
+} catch {
+    print("Fetch failed: \(error)")
+}
