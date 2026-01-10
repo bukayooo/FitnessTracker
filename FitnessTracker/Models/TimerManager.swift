@@ -88,8 +88,11 @@ class TimerManager: ObservableObject {
         workoutStartTime = Date()
         isWorkoutTimerActive = true
         saveTimerState()
-        
-        workoutTimer = Timer.publish(every: 0.5, on: .main, in: .common)
+
+        // BATTERY OPTIMIZATION: Changed from 0.5s to 1s
+        // For a 1-hour workout, this reduces timer firings from 7,200 to 3,600 (50% reduction)
+        // Users don't need sub-second precision for workout duration
+        workoutTimer = Timer.publish(every: 1.0, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
                 guard let self = self else { return }
@@ -119,8 +122,9 @@ class TimerManager: ObservableObject {
         workoutStartTime = Date()
         isWorkoutTimerActive = true
         saveTimerState()
-        
-        workoutTimer = Timer.publish(every: 0.5, on: .main, in: .common)
+
+        // BATTERY OPTIMIZATION: Changed from 0.5s to 1s (same as startWorkoutTimer)
+        workoutTimer = Timer.publish(every: 1.0, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
                 guard let self = self else { return }
@@ -187,7 +191,8 @@ class TimerManager: ObservableObject {
                 workoutStartTime = Date(timeIntervalSince1970: startTimeInterval)
                 
                 // Setup timer again
-                workoutTimer = Timer.publish(every: 0.5, on: .main, in: .common)
+                // BATTERY OPTIMIZATION: Changed from 0.5s to 1s
+                workoutTimer = Timer.publish(every: 1.0, on: .main, in: .common)
                     .autoconnect()
                     .sink { [weak self] _ in
                         guard let self = self else { return }
