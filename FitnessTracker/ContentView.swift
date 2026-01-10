@@ -7,6 +7,7 @@
 
 import SwiftUI
 import CoreData
+import Intents
 
 struct ContentView: View {
     @Environment(\.managedObjectContext) private var viewContext
@@ -51,8 +52,54 @@ struct ContentView: View {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 selectedTab = 1 // Switch to Workout tab
             }
+
+            // DISABLED: Siri feature requires paid Apple Developer account
+            /*
+            // Donate a generic start workout intent on app launch
+            SiriShortcutsManager.shared.donateGenericStartWorkoutIntent()
+            */
+        }
+        // DISABLED: Siri feature requires paid Apple Developer account
+        /*
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("SiriStartWorkout"))) { notification in
+            // Handle Siri-initiated workout starts at the app level
+            if let templateName = notification.userInfo?["templateName"] as? String {
+                print("DEBUG: 🎤 ContentView received Siri start workout request for: \(templateName)")
+                handleSiriWorkoutStart(templateName: templateName)
+            }
+        }
+        */
+    }
+    
+    // DISABLED: Siri feature requires paid Apple Developer account
+    /*
+    private func handleSiriWorkoutStart(templateName: String) {
+        // Find matching template by name
+        let templates = workoutManager.fetchAllTemplates()
+        if let matchingTemplate = templates.first(where: { template in
+            let name = template.value(forKey: "name") as? String ?? ""
+            return name.lowercased() == templateName.lowercased()
+        }) {
+            print("DEBUG: 🎤 Found matching template: \(templateName)")
+
+            // Start workout from template
+            if let newWorkout = workoutManager.startWorkout(from: matchingTemplate) {
+                // Switch to workout tab and show the workout
+                selectedTab = 1
+
+                // Post notification to show the workout
+                NotificationCenter.default.post(
+                    name: Notification.Name("StartWorkoutFromTemplate"),
+                    object: nil,
+                    userInfo: ["workout": newWorkout]
+                )
+            }
+        } else {
+            print("DEBUG: 🎤 No matching template found for: \(templateName)")
+            // Could show an error or create a blank workout instead
         }
     }
+    */
 }
 
 // MARK: - Workout Tab View

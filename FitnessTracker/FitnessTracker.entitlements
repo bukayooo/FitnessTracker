@@ -4,5 +4,10 @@
 <dict>
 	<key>com.apple.developer.healthkit</key>
 	<true/>
+	<!-- DISABLED: Siri feature requires paid Apple Developer account -->
+	<!--
+	<key>com.apple.developer.siri</key>
+	<true/>
+	-->
 </dict>
 </plist>

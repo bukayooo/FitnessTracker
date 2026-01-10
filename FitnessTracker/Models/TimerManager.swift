@@ -235,11 +235,31 @@ class TimerManager: ObservableObject {
     // Method to handle app coming back to foreground
     func handleAppBecameActive() {
         print("DEBUG: TimerManager - App became active")
+
+        // Restore workout timer state
         restoreTimerStateIfNeeded()
-        
+
+        // Update workout timer if active
         if isWorkoutTimerActive, workoutStartTime != nil {
             updateWorkoutElapsedTime()
             print("DEBUG: TimerManager - Updated elapsed time to \(workoutElapsedSeconds)")
+        }
+
+        // Recalculate rest timer if active (handles sleep/background cases)
+        if isRestTimerActive, let startTime = restStartTime {
+            let elapsedTime = Int(Date().timeIntervalSince(startTime))
+            let newTimeRemaining = max(0, initialRestDuration - elapsedTime)
+
+            print("DEBUG: ⏱️ Recalculating rest timer: elapsed=\(elapsedTime)s, remaining=\(newTimeRemaining)s")
+
+            if newTimeRemaining > 0 {
+                // Update remaining time
+                restTimeRemaining = newTimeRemaining
+            } else {
+                // Timer should have completed while app was inactive
+                print("DEBUG: ⏱️ Rest timer completed while app was inactive")
+                handleRestTimerCompletion()
+            }
         }
     }
     
@@ -261,26 +281,32 @@ class TimerManager: ObservableObject {
     
     // MARK: - Rest Timer Methods
     func startRestTimer(duration: Int? = nil) {
-                initialRestDuration = duration ?? restDuration
+        // Clean up any existing timer first to ensure fresh start
+        if isRestTimerActive {
+            stopRestTimer(manualStop: true)
+        }
+
+        initialRestDuration = duration ?? restDuration
         restTimeRemaining = initialRestDuration
         restStartTime = Date()
         isRestTimerActive = true
-        
+
+        print("DEBUG: ⏱️ Starting rest timer: duration=\(initialRestDuration)s, startTime=\(restStartTime!)")
+
         // Schedule local notification for rest timer completion
         scheduleRestTimerNotification()
-        
+
         restTimer = Timer.publish(every: 1, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
                 guard let self = self else { return }
                 if self.restTimeRemaining > 0 {
                     self.restTimeRemaining -= 1
-                    
                 } else {
                     self.handleRestTimerCompletion()
                 }
             }
-        
+
         // Save state immediately when starting
         saveTimerState()
     }
@@ -311,24 +337,27 @@ class TimerManager: ObservableObject {
     }
     
     func stopRestTimer(manualStop: Bool = false) {
-        
+        print("DEBUG: ⏱️ Stopping rest timer: manualStop=\(manualStop), wasActive=\(isRestTimerActive)")
+
         // Remove pending notifications when timer is stopped
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["restTimer"])
-        
+
         restTimer?.cancel()
         restTimer = nil
         isRestTimerActive = false
         restTimeRemaining = 0
         restStartTime = nil
         initialRestDuration = 0
-        
+
         // Post notification that rest timer is complete with manual stop flag
         NotificationCenter.default.post(
-            name: NSNotification.Name("RestTimerComplete"), 
-            object: nil, 
+            name: NSNotification.Name("RestTimerComplete"),
+            object: nil,
             userInfo: ["manualStop": manualStop]
         )
-        
+
+        print("DEBUG: ⏱️ Posted RestTimerComplete notification with manualStop=\(manualStop)")
+
         // Save state immediately when stopping
         saveTimerState()
     }

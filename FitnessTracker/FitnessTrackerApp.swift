@@ -7,6 +7,8 @@
 
 import SwiftUI
 import CoreData
+// DISABLED: Requires paid Apple Developer account
+// import Intents
 
 // Create a notification name for scene phase changes
 extension Notification.Name {
@@ -19,11 +21,36 @@ struct FitnessTrackerApp: App {
     
     @Environment(\.scenePhase) var scenePhase
     
+    init() {
+        // DISABLED: Siri feature requires paid Apple Developer account
+        // To re-enable: Uncomment the Intents import and this authorization code
+        /*
+        // Set up Siri authorization for user activities
+        INPreferences.requestSiriAuthorization { status in
+            print("DEBUG: 🎤 Siri authorization status: \(status)")
+        }
+        */
+    }
+    
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
                 .tint(.fitnessPrimary)
+                // DISABLED: Siri feature requires paid Apple Developer account
+                /*
+                .onOpenURL { url in
+                    print("DEBUG: 🎤 App opened with URL: \(url)")
+                    // Handle return from Shortcuts app
+                    if url.scheme == Bundle.main.bundleIdentifier {
+                        print("DEBUG: 🎤 Returned from Shortcuts execution")
+                    }
+                }
+                .onContinueUserActivity("com.spruce.fitnessTracker.startWorkout") { userActivity in
+                    print("DEBUG: 🎤 Received user activity: \(userActivity.activityType)")
+                    SiriShortcutsManager.shared.handleStartWorkoutActivity(userActivity)
+                }
+                */
         }
         .onChange(of: scenePhase) { oldPhase, newPhase in
             // Broadcast app state change so any active TimerManager instances can respond

@@ -1,6 +1,7 @@
 import SwiftUI
 import CoreData
 import Combine
+import Intents
 
 struct WorkoutView: View {
     @Environment(\.dismiss) private var dismiss
@@ -254,6 +255,15 @@ struct WorkoutView: View {
                 }
                 loadWarmupsAndStartTimerIfNeeded()
                 warmupsLoaded = true
+
+                // DISABLED: Siri feature requires paid Apple Developer account
+                /*
+                // Donate Siri shortcut and execute background shortcut when workout view appears
+                let workoutName = templateName
+                print("DEBUG: 🎤 Donating Siri shortcut for workout: \(workoutName)")
+                SiriShortcutsManager.shared.donateStartWorkoutIntent(templateName: workoutName)
+                SiriShortcutsManager.shared.executeBackgroundShortcut(for: workoutName)
+                */
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("StartWorkoutFromTemplate"))) { notification in
@@ -261,12 +271,36 @@ struct WorkoutView: View {
                 print("DEBUG: 🎯 Received StartWorkoutFromTemplate notification")
                 hasLoggedNotification = true
             }
+            
+            print("DEBUG: 🎤 StartWorkoutFromTemplate - isTemplateView: \(isTemplateView), templateName: '\(templateName)'")
+
+            // DISABLED: Siri feature requires paid Apple Developer account
+            /*
+            // Donate Siri shortcut and execute background shortcut when workout starts
+            if !isTemplateView {
+                let workoutName = templateName
+                print("DEBUG: 🎤 Donating Siri shortcut for workout: \(workoutName)")
+                SiriShortcutsManager.shared.donateStartWorkoutIntent(templateName: workoutName)
+                SiriShortcutsManager.shared.executeBackgroundShortcut(for: workoutName)
+            } else {
+                print("DEBUG: 🎤 Skipping Siri shortcuts because isTemplateView=\(isTemplateView)")
+            }
+            */
+            
             if !isTemplateView && !warmupsLoaded {
                 if !hasLoggedNotification {
                     print("DEBUG: 🎯 About to call loadWarmupsAndStartTimerIfNeeded from notification")
                 }
                 loadWarmupsAndStartTimerIfNeeded()
                 warmupsLoaded = true
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("SiriStartWorkout"))) { notification in
+            // Handle Siri-initiated workout starts
+            if let templateName = notification.userInfo?["templateName"] as? String {
+                print("DEBUG: 🎤 Received Siri start workout request for: \(templateName)")
+                // Find matching template and start workout
+                startWorkoutFromSiri(templateName: templateName)
             }
         }
         .onChange(of: scenePhase) { _, newPhase in
@@ -532,6 +566,23 @@ struct WorkoutView: View {
             }
         } else {
             print("DEBUG: 🏋️‍♂️ In template view mode, skipping warmups")
+        }
+    }
+    
+    private func startWorkoutFromSiri(templateName: String) {
+        // This method would need access to WorkoutManager and template data
+        // For now, we'll just handle the basic case
+        print("DEBUG: 🎤 Starting workout from Siri for template: \(templateName)")
+        
+        // If this is a template view, we can start the workout directly
+        if isTemplateView && workout.value(forKey: "name") as? String == templateName {
+            let newWorkout = workoutManager.startWorkout(from: workout)
+            dismiss()
+            NotificationCenter.default.post(
+                name: Notification.Name("StartWorkoutFromTemplate"),
+                object: nil,
+                userInfo: ["workout": newWorkout as Any]
+            )
         }
     }
 }
@@ -966,13 +1017,16 @@ struct RestTimerView: View {
             }
             .padding()
             .navigationBarItems(
-                trailing: Button("Close") {
-                    if timerManager.isRestTimerActive {
-                        timerManager.stopRestTimer(manualStop: true)
+                trailing: Group {
+                    // Only show Close button when not actively timing
+                    if !timerManager.isRestTimerActive {
+                        Button("Close") {
+                            showingRestTimer = false
+                        }
                     }
-                    showingRestTimer = false
                 }
             )
+            .interactiveDismissDisabled(timerManager.isRestTimerActive)
             .onDisappear {
                 // Don't stop the timer when view disappears
                 // Let it continue in the background
@@ -980,19 +1034,28 @@ struct RestTimerView: View {
             .onAppear {
                 // Set default duration to 1:41 (101 seconds)
                 selectedDuration = 101
-                
-                // Add observer for rest timer completion - only dismiss if timer was manually stopped
+                print("DEBUG: ⏱️ RestTimerView appeared, isRestTimerActive=\(timerManager.isRestTimerActive)")
+
+                // Add observer for rest timer completion
                 NotificationCenter.default.addObserver(
                     forName: NSNotification.Name("RestTimerComplete"),
                     object: nil,
                     queue: .main
                 ) { notification in
-                    // Only auto-dismiss if the timer was manually stopped, not if it completed naturally
+                    print("DEBUG: ⏱️ Received RestTimerComplete notification")
+                    // Auto-dismiss when timer completes naturally (not manually stopped)
                     if let userInfo = notification.userInfo,
-                       userInfo["manualStop"] as? Bool == true {
-                        showingRestTimer = false
+                       let manualStop = userInfo["manualStop"] as? Bool {
+                        print("DEBUG: ⏱️ manualStop=\(manualStop)")
+                        if !manualStop {
+                            // Dismiss immediately when timer completes
+                            print("DEBUG: ⏱️ Timer completed naturally, dismissing sheet immediately")
+                            showingRestTimer = false
+                        } else {
+                            print("DEBUG: ⏱️ Timer was manually stopped, not auto-dismissing")
+                        }
                     }
-                    // If timer completed naturally, keep sheet open so user can see it completed
+                    // If manually stopped (Skip button), dismiss immediately handled by button action
                 }
             }
         }
