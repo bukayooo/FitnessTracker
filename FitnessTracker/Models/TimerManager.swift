@@ -25,8 +25,8 @@ class TimerManager: ObservableObject {
     @Published var warmups: [String] = []
     @Published var warmupDurations: [Int] = []
     
-    // Default rest timer duration (1:41 = 101 seconds)
-    let restDuration: Int = 101
+    // Default rest timer duration (1:00 = 60 seconds)
+    let restDuration: Int = 60
     // Default warmup timer duration (15 seconds)
     let defaultWarmupDuration: Int = 15
     

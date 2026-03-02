@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		1CFE5CBE2F12CCB000C8799C /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 1CFE5CBD2F12CCB000C8799C /* AppIcon.icon */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		1C2148592D6E6A4500CAC896 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -27,6 +31,7 @@
 		1C2148482D6E6A4300CAC896 /* FitnessTracker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FitnessTracker.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		1C2148582D6E6A4500CAC896 /* FitnessTrackerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FitnessTrackerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		1C2148622D6E6A4500CAC896 /* FitnessTrackerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FitnessTrackerUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		1CFE5CBD2F12CCB000C8799C /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = AppIcon.icon; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -88,6 +93,7 @@
 		1C21483F2D6E6A4300CAC896 = {
 			isa = PBXGroup;
 			children = (
+				1CFE5CBD2F12CCB000C8799C /* AppIcon.icon */,
 				1C21484A2D6E6A4300CAC896 /* FitnessTracker */,
 				1C21485B2D6E6A4500CAC896 /* FitnessTrackerTests */,
 				1C2148652D6E6A4500CAC896 /* FitnessTrackerUITests */,
@@ -225,6 +231,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				1CFE5CBE2F12CCB000C8799C /* AppIcon.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

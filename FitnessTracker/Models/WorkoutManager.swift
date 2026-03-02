@@ -437,21 +437,9 @@ class WorkoutManager: ObservableObject {
                         exerciseSet.setValue(false, forKey: "isComplete")
                     }
                     
-                    // Populate with previous data if available
-                    if setIndex < previousSetsCount {
-                        if let previousData = self.getLastWorkoutSetData(for: exercise, setNumber: Int16(setIndex)) {
-                            exerciseSet.setValue(previousData.reps, forKey: "reps")
-                            exerciseSet.setValue(previousData.weight, forKey: "weight")
-                            print("DEBUG: 📊 ✅ Loaded history for \(exerciseName) set \(setIndex): \(previousData.reps) reps @ \(previousData.weight) lbs")
-
-                            // Mark as complete if we have valid reps (greater than 0) and isComplete exists
-                            if previousData.reps > 0 && setEntity.propertiesByName["isComplete"] != nil {
-                                exerciseSet.setValue(true, forKey: "isComplete")
-                            }
-                        } else {
-                            print("DEBUG: 📊 ⚠️ No history found for \(exerciseName) set \(setIndex), using defaults")
-                        }
-                    }
+                    // Leave reps/weight at 0 so text fields start empty.
+                    // The view's onAppear fetches history via getLastWorkoutSetData and
+                    // displays it as a grey placeholder overlay, letting users type fresh values.
                 }
             }
             

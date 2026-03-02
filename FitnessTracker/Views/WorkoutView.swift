@@ -959,7 +959,7 @@ struct SetRow: View {
 // MARK: - Rest Timer View
 struct RestTimerView: View {
     @Binding var showingRestTimer: Bool
-    @State private var selectedDuration: Int = 101  // Default to 1:41
+    @State private var selectedDuration: Int = 60  // Default to 1:00
     @EnvironmentObject var timerManager: TimerManager
     
     var body: some View {
@@ -1032,8 +1032,8 @@ struct RestTimerView: View {
                 // Let it continue in the background
             }
             .onAppear {
-                // Set default duration to 1:41 (101 seconds)
-                selectedDuration = 101
+                // Set default duration to 1:00 (60 seconds)
+                selectedDuration = 60
                 print("DEBUG: ⏱️ RestTimerView appeared, isRestTimerActive=\(timerManager.isRestTimerActive)")
 
                 // Add observer for rest timer completion
