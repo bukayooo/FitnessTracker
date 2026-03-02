@@ -947,11 +947,14 @@ struct SetRow: View {
                 }
                 .buttonStyle(.plain)
                 .padding(.top, 4)
-                .sheet(isPresented: $showingRestTimer) {
-                    RestTimerView(showingRestTimer: $showingRestTimer)
-                        .environmentObject(timerManager)
-                }
             }
+        }
+        // Sheet must live outside any conditional so it is always present in the
+        // view hierarchy. Placing it inside `if showRestButton` causes SwiftUI to
+        // remove and re-add the modifier on re-renders, which dismisses the sheet.
+        .sheet(isPresented: $showingRestTimer) {
+            RestTimerView(showingRestTimer: $showingRestTimer)
+                .environmentObject(timerManager)
         }
     }
 }
@@ -1035,27 +1038,19 @@ struct RestTimerView: View {
                 // Set default duration to 1:00 (60 seconds)
                 selectedDuration = 60
                 print("DEBUG: ⏱️ RestTimerView appeared, isRestTimerActive=\(timerManager.isRestTimerActive)")
-
-                // Add observer for rest timer completion
-                NotificationCenter.default.addObserver(
-                    forName: NSNotification.Name("RestTimerComplete"),
-                    object: nil,
-                    queue: .main
-                ) { notification in
-                    print("DEBUG: ⏱️ Received RestTimerComplete notification")
-                    // Auto-dismiss when timer completes naturally (not manually stopped)
-                    if let userInfo = notification.userInfo,
-                       let manualStop = userInfo["manualStop"] as? Bool {
-                        print("DEBUG: ⏱️ manualStop=\(manualStop)")
-                        if !manualStop {
-                            // Dismiss immediately when timer completes
-                            print("DEBUG: ⏱️ Timer completed naturally, dismissing sheet immediately")
-                            showingRestTimer = false
-                        } else {
-                            print("DEBUG: ⏱️ Timer was manually stopped, not auto-dismissing")
-                        }
+            }
+            // onReceive auto-cancels when the view disappears, preventing observer accumulation
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("RestTimerComplete"))) { notification in
+                print("DEBUG: ⏱️ Received RestTimerComplete notification")
+                if let userInfo = notification.userInfo,
+                   let manualStop = userInfo["manualStop"] as? Bool {
+                    print("DEBUG: ⏱️ manualStop=\(manualStop)")
+                    if !manualStop {
+                        print("DEBUG: ⏱️ Timer completed naturally, dismissing sheet immediately")
+                        showingRestTimer = false
+                    } else {
+                        print("DEBUG: ⏱️ Timer was manually stopped, not auto-dismissing")
                     }
-                    // If manually stopped (Skip button), dismiss immediately handled by button action
                 }
             }
         }
