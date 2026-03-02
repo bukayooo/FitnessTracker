@@ -311,23 +311,10 @@ struct WorkoutView: View {
             isShowingWarmupTimer = false
             timerManager.startWorkoutTimer()
         }
-        .onChange(of: scenePhase) { _, newPhase in
-            switch newPhase {
-            case .active:
-                // App came back to foreground
-                print("DEBUG: WorkoutView - App became active")
-                timerManager.handleAppBecameActive()
-            case .background:
-                // App went to background
-                print("DEBUG: WorkoutView - App went to background")
-                timerManager.handleAppWentToBackground()
-            case .inactive:
-                // App became inactive (but not yet in background)
-                print("DEBUG: WorkoutView - App became inactive")
-            @unknown default:
-                break
-            }
-        }
+        // NOTE: TimerManager already subscribes to .appScenePhaseChanged (posted by
+        // FitnessTrackerApp) and calls handleAppBecameActive/WentToBackground itself.
+        // Do NOT duplicate those calls here — it causes double timer recalculations
+        // and double UserDefaults writes on every app-foreground/background transition.
     }
     
     private var mainWorkoutView: some View {

@@ -81,15 +81,7 @@ struct TemplatesView: View {
                 }
             }
         }
-        .sheet(isPresented: $showingNewTemplate, onDismiss: {
-            print("DEBUG: Template creation sheet dismissed")
-            // Force a complete refresh of templates from the database
-            workoutManager.templates = [] // Clear cache to force refetch
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                refreshTemplates() // Call the refresh function with a slight delay
-                print("DEBUG: Templates refreshed after sheet dismissed")
-            }
-        }) {
+        .sheet(isPresented: $showingNewTemplate) {
             CreateTemplateView()
         }
         .sheet(isPresented: $showingTemplateDetail) {
@@ -125,10 +117,41 @@ struct TemplatesView: View {
             }
         }
         .onAppear {
-            // Set up notification observer for starting workouts from templates
-            setupNotificationObserver()
-            
-            // Refresh templates when view appears
+            refreshTemplates()
+        }
+        // onReceive auto-cancels when the view disappears, so observers never accumulate
+        // across sheet presentations. Previously addObserver was called in onAppear (which
+        // fires after every sheet dismiss) using an API that can't be removed by name, so
+        // each sheet open/close added another duplicate observer.
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("StartWorkoutFromTemplate"))) { notification in
+            print("DEBUG: Received notification to start workout")
+            isLoading = true
+            errorMessage = nil
+            showingError = false
+
+            guard let userInfo = notification.userInfo,
+                  let workout = userInfo["workout"] as? NSManagedObject else {
+                handleError("No workout data provided")
+                return
+            }
+            print("DEBUG: Setting up to show workout: \(workout.objectID)")
+            newWorkoutObject = nil
+            showingNewWorkout = false
+
+            guard workout.isValid,
+                  let freshWorkout = try? viewContext.existingObject(with: workout.objectID) else {
+                handleError("Failed to load workout data")
+                return
+            }
+            print("DEBUG: Successfully retrieved fresh workout")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                isLoading = false
+                newWorkoutObject = freshWorkout
+                showingNewWorkout = true
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("TemplateCreated"))) { _ in
+            print("DEBUG: Received notification that template was created")
             refreshTemplates()
         }
     }
@@ -153,67 +176,6 @@ struct TemplatesView: View {
         }
     }
     
-    private func setupNotificationObserver() {
-        // Remove any existing observer first to prevent duplicates
-        NotificationCenter.default.removeObserver(self, name: Notification.Name("StartWorkoutFromTemplate"), object: nil)
-        NotificationCenter.default.removeObserver(self, name: Notification.Name("TemplateCreated"), object: nil)
-        
-        NotificationCenter.default.addObserver(
-            forName: Notification.Name("StartWorkoutFromTemplate"),
-            object: nil,
-            queue: .main) { notification in
-                print("DEBUG: Received notification to start workout")
-                
-                // Set loading state
-                self.isLoading = true
-                self.errorMessage = nil
-                self.showingError = false
-                
-                // Get the workout from the notification
-                if let userInfo = notification.userInfo,
-                   let workout = userInfo["workout"] as? NSManagedObject {
-                    print("DEBUG: Setting up to show workout: \(workout.objectID)")
-                    
-                    // Reset existing workout object
-                    self.newWorkoutObject = nil
-                    self.showingNewWorkout = false
-                    
-                    // Verify the workout is valid
-                    if workout.isValid {
-                        // Ensure workout is properly loaded in context
-                        do {
-                            // Using guard let for the optional returned by existingObject(with:)
-                            guard let freshWorkout = try? viewContext.existingObject(with: workout.objectID) else {
-                                self.handleError("Failed to load workout data")
-                                return
-                            }
-                            
-                            print("DEBUG: Successfully retrieved fresh workout")
-                            
-                            // Show the workout view after a delay
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                                self.isLoading = false
-                                self.newWorkoutObject = freshWorkout // Remove unnecessary cast
-                                self.showingNewWorkout = true
-                            }
-                        }
-                    } else {
-                        self.handleError("Workout is not valid or has been deleted")
-                    }
-                } else {
-                    self.handleError("No workout data provided")
-                }
-            }
-            
-        // Add observer for template creation
-        NotificationCenter.default.addObserver(
-            forName: Notification.Name("TemplateCreated"),
-            object: nil,
-            queue: .main) { _ in
-                print("DEBUG: Received notification that template was created")
-                self.refreshTemplates()
-            }
-    }
     
     private func handleError(_ message: String) {
         print("DEBUG: Error: \(message)")

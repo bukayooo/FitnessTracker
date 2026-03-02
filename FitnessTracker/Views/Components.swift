@@ -192,26 +192,18 @@ struct EmptyStateView: View {
 // MARK: - Warmup Timer View
 struct WarmupTimerView: View {
     @ObservedObject var timerManager: TimerManager
-    @State private var hasLoggedRender = false
-    
+
     var body: some View {
         ZStack {
             Color(.systemBackground)
                 .edgesIgnoringSafeArea(.all)
-            
+
             VStack(spacing: 24) {
                 Text("Warmup")
                     .font(.system(size: 26, weight: .bold))
                     .foregroundColor(.primary)
-                
-                // Show message when no warmups are available
+
                 if timerManager.warmups.isEmpty {
-                    let _ = {
-                        if !hasLoggedRender {
-                            print("DEBUG: 🔴 WarmupTimerView rendering with EMPTY warmups array. TimerManager instance: \(ObjectIdentifier(timerManager)), warmups count: \(timerManager.warmups.count)")
-                            hasLoggedRender = true
-                        }
-                    }()
                     VStack(spacing: 16) {
                         Image(systemName: "figure.walk")
                             .font(.system(size: 48))
@@ -242,12 +234,6 @@ struct WarmupTimerView: View {
                             .cornerRadius(12)
                     }
                 } else {
-                    let _ = {
-                        if !hasLoggedRender {
-                            print("DEBUG: 🟢 WarmupTimerView rendering with warmups available. TimerManager instance: \(ObjectIdentifier(timerManager)), warmups count: \(timerManager.warmups.count), warmups: \(timerManager.warmups)")
-                            hasLoggedRender = true
-                        }
-                    }()
                     // Show warmup content when warmups are available
                     if let warmupName = timerManager.currentWarmupName {
                         Text(warmupName)
