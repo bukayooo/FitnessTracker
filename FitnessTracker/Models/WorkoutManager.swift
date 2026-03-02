@@ -11,13 +11,16 @@ import SwiftUI
 
 class WorkoutManager: ObservableObject {
     private let viewContext: NSManagedObjectContext
-    
+
     // Add a published property to trigger view updates
     @Published var templateCount: Int = 0
     @Published var templates: [NSManagedObject] = []
-    
+
     // Throttling for refresh operations
     private var lastRefreshTime: Date = Date.distantPast
+
+    // Debounce pending save for set updates (avoids a disk write on every keystroke)
+    private var pendingSetSave: DispatchWorkItem?
     
     init(context: NSManagedObjectContext) {
         self.viewContext = context
@@ -30,6 +33,14 @@ class WorkoutManager: ObservableObject {
             self,
             selector: #selector(refreshTemplates),
             name: UIApplication.willEnterForegroundNotification,
+            object: nil
+        )
+
+        // Flush any debounced set save when the app backgrounds, so no data is lost
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(flushPendingSetSave),
+            name: UIApplication.willResignActiveNotification,
             object: nil
         )
         
@@ -226,10 +237,7 @@ class WorkoutManager: ObservableObject {
         durations.append(duration)
         warmupDurationsDict[templateID] = durations
         UserDefaults.standard.set(warmupDurationsDict, forKey: "templateWarmupDurations")
-        
-        // Force synchronize to ensure data is saved immediately
-        UserDefaults.standard.synchronize()
-        print("DEBUG: 📝 Warmup added and UserDefaults synchronized")
+        print("DEBUG: 📝 Warmup added")
     }
     
     func getWarmups(for template: NSManagedObject) -> [String] {
@@ -329,8 +337,6 @@ class WorkoutManager: ObservableObject {
             // Save updated durations
             durationsDict[templateID] = durations
             UserDefaults.standard.set(durationsDict, forKey: "templateWarmupDurations")
-            // Force synchronize to ensure data is saved immediately
-            UserDefaults.standard.synchronize()
             print("DEBUG: 📝 Saved updated durations: \(durations)")
         } else {
             // Invalid index: do nothing
@@ -492,15 +498,26 @@ class WorkoutManager: ObservableObject {
     func updateSet(_ set: NSManagedObject, reps: Int16, weight: Double) {
         set.setValue(reps, forKey: "reps")
         set.setValue(weight, forKey: "weight")
-        
-        // Only set isComplete if the property exists
+
         if set.entity.propertiesByName["isComplete"] != nil {
-            // Mark as complete if we have valid reps (greater than 0)
             if reps > 0 {
                 set.setValue(true, forKey: "isComplete")
             }
         }
-        
+
+        // Debounce the disk write: typing "155" fires 3 calls but only 1 save after 0.8 s.
+        // The in-memory Core Data values are already updated above, so any immediate save
+        // (e.g. from updateSetCompletion or completeWorkout) will include these values.
+        pendingSetSave?.cancel()
+        let work = DispatchWorkItem { [weak self] in self?.saveContext() }
+        pendingSetSave = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8, execute: work)
+    }
+
+    @objc private func flushPendingSetSave() {
+        guard pendingSetSave != nil else { return }
+        pendingSetSave?.cancel()
+        pendingSetSave = nil
         saveContext()
     }
     

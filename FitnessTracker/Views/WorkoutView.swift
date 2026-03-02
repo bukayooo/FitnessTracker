@@ -303,6 +303,14 @@ struct WorkoutView: View {
                 startWorkoutFromSiri(templateName: templateName)
             }
         }
+        // Single, leak-free observer replacing the two addObserver calls in loadWarmupsAndStartTimerIfNeeded.
+        // onReceive auto-cancels when the view disappears, so it never accumulates.
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("WarmupTimerComplete"))) { _ in
+            guard !isTemplateView else { return }
+            print("DEBUG: 🏃‍♂️ Warmup complete, starting workout timer")
+            isShowingWarmupTimer = false
+            timerManager.startWorkoutTimer()
+        }
         .onChange(of: scenePhase) { _, newPhase in
             switch newPhase {
             case .active:
@@ -534,32 +542,11 @@ struct WorkoutView: View {
                         isShowingWarmupTimer = true
                     }
                     
-                    // Listen for when all warmups are completed
-                    NotificationCenter.default.addObserver(
-                        forName: NSNotification.Name("WarmupTimerComplete"),
-                        object: nil,
-                        queue: .main
-                    ) { _ in
-                        print("DEBUG: 🏃‍♂️ Warmups completed, starting workout timer")
-                        isShowingWarmupTimer = false
-                        timerManager.startWorkoutTimer()
-                    }
                 } else {
                     print("DEBUG: 🏋️‍♂️ No warmups found, showing empty warmup screen for user awareness")
                     // Show warmup timer with empty warmups so user knows warmups are supported
                     timerManager.startWarmupTimer(warmups: [], durations: [])
                     isShowingWarmupTimer = true
-                    
-                    // Listen for when warmup timer is dismissed
-                    NotificationCenter.default.addObserver(
-                        forName: NSNotification.Name("WarmupTimerComplete"),
-                        object: nil,
-                        queue: .main
-                    ) { _ in
-                        print("DEBUG: 🏃‍♂️ Empty warmup timer dismissed, starting workout timer")
-                        isShowingWarmupTimer = false
-                        timerManager.startWorkoutTimer()
-                    }
                 }
             } else {
                 print("DEBUG: 🏋️‍♂️ No template found for this workout")
