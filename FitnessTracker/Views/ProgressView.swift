@@ -435,7 +435,7 @@ struct WorkoutDetailView: View {
                             
                             ForEach(sortedSets, id: \.self) { set in
                                 HStack {
-                                    Text("Set \(set.value(forKey: "setNumber") as? Int16 ?? 0 + 1)")
+                                    Text("Set \((set.value(forKey: "setNumber") as? Int16 ?? 0) + 1)")
                                     Spacer()
                                     Text("\(set.value(forKey: "reps") as? Int16 ?? 0) reps × \(String(format: "%.1f", set.value(forKey: "weight") as? Double ?? 0.0))")
                                         .foregroundColor(.secondary)
