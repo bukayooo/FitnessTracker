@@ -449,7 +449,7 @@ struct WorkoutDetailView: View {
                                 HStack {
                                     Text("Set \((set.value(forKey: "setNumber") as? Int16 ?? 0) + 1)")
                                     Spacer()
-                                    Text("\(set.value(forKey: "reps") as? Int16 ?? 0) reps × \(String(format: "%.1f", set.value(forKey: "weight") as? Double ?? 0.0)) lbs.")
+                                    Text("\(set.value(forKey: "reps") as? Int16 ?? 0) reps × \(String(format: "%.1f", set.value(forKey: "weight") as? Double ?? 0.0)) lbs")
                                         .foregroundColor(.secondary)
                                     if heat > 0 {
                                         HStack(spacing: 2) {
