@@ -660,7 +660,15 @@ struct ExerciseCard: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                             .frame(width: 60, alignment: .center)
-                        
+
+                        Spacer()
+                            .frame(width: 12)
+
+                        Text("Heat")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .frame(width: 36, alignment: .center)
+
                         Spacer()
                     }
                     
@@ -734,9 +742,45 @@ struct SetRow: View {
     @State private var showRestButton = false
     @FocusState private var isTextFieldFocused: Bool
     @State private var previousSetData: (reps: Int16, weight: Double)? = nil
-    
+    @State private var heatRating: Int = 0          // 0 = unrated, 1-10 = effort level
+    @State private var previousHeatRating: Int = 0  // last session's heat for this set
+    @State private var showingHeatPicker = false
+
     private var setId: String {
         return set.objectID.uriRepresentation().absoluteString
+    }
+
+    private func heatColor(_ rating: Int) -> Color {
+        switch rating {
+        case 1...3: return .green
+        case 4...6: return .orange
+        case 7...8: return Color(red: 1.0, green: 0.4, blue: 0.0)
+        default:    return .red
+        }
+    }
+
+    // Heat scale reference:
+    //   9 = barely completed all reps (TARGET — hold weight)
+    //   8 = completed with difficulty (still below target → small increase)
+    //   7 = moderate effort (below target → moderate increase)
+    //  ≤6 = too easy → larger increases
+    //  10 = couldn't complete all reps → hold weight (same as 9)
+    @AppStorage("weightSuggestionEnabled") private var weightSuggestionEnabled = true
+
+    private var suggestedWeight: Double? {
+        guard weightSuggestionEnabled else { return nil }
+        guard let prev = previousSetData, prev.weight > 0, previousHeatRating > 0 else { return nil }
+        let multiplier: Double
+        switch previousHeatRating {
+        case 1...2: multiplier = 1.15   // very easy → +15%
+        case 3...4: multiplier = 1.12   // easy → +12%
+        case 5...6: multiplier = 1.08   // somewhat easy → +8%
+        case 7:     multiplier = 1.05   // moderate, below target → +5%
+        case 8:     multiplier = 1.03   // hard but below target → +3%
+        case 9:     multiplier = 1.00   // target: barely completed → hold
+        default:    multiplier = 1.00   // heat 10: couldn't finish all reps → hold weight
+        }
+        return ((prev.weight * multiplier) / 2.5).rounded() * 2.5
     }
     
     private var isSetComplete: Bool {
@@ -863,17 +907,41 @@ struct SetRow: View {
                     .frame(width: 60)
                     .focused($isTextFieldFocused)
                     .overlay {
-                        if let previousData = previousSetData,
-                           previousData.weight > 0,
-                           (setValues[setId]?.weight ?? 0) == 0 && (set.value(forKey: "weight") as? Double ?? 0.0) == 0 {
-                            Text("\(Int(previousData.weight))")
-                                .foregroundColor(.gray.opacity(0.7))
-                                .multilineTextAlignment(.center)
-                                .font(.body.weight(.medium))
+                        if (setValues[setId]?.weight ?? 0) == 0 && (set.value(forKey: "weight") as? Double ?? 0.0) == 0 {
+                            if let suggested = suggestedWeight {
+                                Text("\(Int(suggested))")
+                                    .foregroundColor(.orange.opacity(0.6))
+                                    .multilineTextAlignment(.center)
+                                    .font(.body.weight(.medium))
+                            } else if let previousData = previousSetData, previousData.weight > 0 {
+                                Text("\(Int(previousData.weight))")
+                                    .foregroundColor(.gray.opacity(0.7))
+                                    .multilineTextAlignment(.center)
+                                    .font(.body.weight(.medium))
+                            }
                         }
                     }
                 }
                 
+                Button {
+                    showingHeatPicker.toggle()
+                } label: {
+                    if heatRating > 0 {
+                        Text("\(heatRating)")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundColor(heatColor(heatRating))
+                            .frame(width: 36, height: 32)
+                            .background(heatColor(heatRating).opacity(0.12))
+                            .cornerRadius(7)
+                    } else {
+                        Image(systemName: "flame")
+                            .font(.system(size: 15))
+                            .foregroundColor(.secondary.opacity(0.4))
+                            .frame(width: 36, height: 32)
+                    }
+                }
+                .buttonStyle(.plain)
+
                 Button {
                     let newCompletionStatus = !isSetComplete
                     workoutManager.updateSetCompletion(set, isComplete: newCompletionStatus)
@@ -896,14 +964,33 @@ struct SetRow: View {
             .padding(.vertical, 6)
             .opacity(isActive ? 1.0 : 0.6)
             .onAppear {
-                // Fetch previous workout data when the set row appears
                 if let exerciseObj = set.value(forKey: "workoutExercise") as? NSManagedObject,
                    let exercise = exerciseObj.value(forKey: "exercise") as? NSManagedObject {
                     let setNum = set.value(forKey: "setNumber") as? Int16 ?? 0
                     print("DEBUG: Fetching previous data for exercise: \(exercise.value(forKey: "name") ?? "unknown"), set: \(setNum)")
                     previousSetData = workoutManager.getLastWorkoutSetData(for: exercise, setNumber: setNum)
-                    print("DEBUG: Previous data: \(String(describing: previousSetData))")
+                    previousHeatRating = workoutManager.getLastWorkoutHeatRating(for: exercise, setNumber: setNum)
                 }
+                // Restore any rating already entered this session (survives re-renders)
+                let stored = UserDefaults.standard.integer(forKey: "heat_\(setId)")
+                if stored > 0 { heatRating = stored }
+            }
+
+            if showingHeatPicker {
+                HeatPickerView(
+                    selectedRating: $heatRating,
+                    isPresented: $showingHeatPicker,
+                    onSelect: { rating in
+                        UserDefaults.standard.set(rating > 0 ? rating : nil, forKey: "heat_\(setId)")
+                        if rating > 0 {
+                            UserDefaults.standard.set(rating, forKey: "heat_\(setId)")
+                        } else {
+                            UserDefaults.standard.removeObject(forKey: "heat_\(setId)")
+                        }
+                    }
+                )
+                .transition(.opacity.combined(with: .move(edge: .top)))
+                .padding(.horizontal, 4)
             }
             
             if showRestButton && isSetComplete {
@@ -929,6 +1016,68 @@ struct SetRow: View {
         .sheet(isPresented: $showingRestTimer) {
             RestTimerView(showingRestTimer: $showingRestTimer)
                 .environmentObject(timerManager)
+        }
+    }
+}
+
+// MARK: - Heat Picker View
+struct HeatPickerView: View {
+    @Binding var selectedRating: Int
+    @Binding var isPresented: Bool
+    let onSelect: (Int) -> Void
+
+    var body: some View {
+        VStack(spacing: 6) {
+            HStack(spacing: 0) {
+                Text("1")
+                    .font(.system(size: 9))
+                    .foregroundColor(.secondary)
+                Spacer()
+                Text("Easy")
+                    .font(.system(size: 9))
+                    .foregroundColor(.secondary)
+                Spacer()
+                Text("Hard")
+                    .font(.system(size: 9))
+                    .foregroundColor(.secondary)
+                Spacer()
+                Text("10")
+                    .font(.system(size: 9))
+                    .foregroundColor(.secondary)
+            }
+            .padding(.horizontal, 4)
+
+            HStack(spacing: 5) {
+                ForEach(1...10, id: \.self) { n in
+                    Button {
+                        let newRating = selectedRating == n ? 0 : n
+                        selectedRating = newRating
+                        onSelect(newRating)
+                        isPresented = false
+                    } label: {
+                        Text("\(n)")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(selectedRating == n ? .white : colorFor(n))
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 32)
+                            .background(selectedRating == n ? colorFor(n) : colorFor(n).opacity(0.13))
+                            .cornerRadius(7)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        .padding(8)
+        .background(Color(.systemGray6))
+        .cornerRadius(10)
+    }
+
+    private func colorFor(_ n: Int) -> Color {
+        switch n {
+        case 1...3: return .green
+        case 4...6: return .orange
+        case 7...8: return Color(red: 1.0, green: 0.4, blue: 0.0)
+        default:    return .red
         }
     }
 }

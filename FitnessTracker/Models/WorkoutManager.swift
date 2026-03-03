@@ -690,6 +690,35 @@ class WorkoutManager: ObservableObject {
         }
     }
     
+    func getLastWorkoutHeatRating(for exercise: NSManagedObject, setNumber: Int16) -> Int {
+        let exerciseName = exercise.value(forKey: "name") as? String ?? ""
+
+        let workoutRequest = NSFetchRequest<NSManagedObject>(entityName: "Workout")
+        workoutRequest.predicate = NSPredicate(format: "duration > 0")
+        workoutRequest.sortDescriptors = [NSSortDescriptor(key: "date", ascending: false)]
+        workoutRequest.fetchLimit = 10
+
+        do {
+            let recentWorkouts = try viewContext.fetch(workoutRequest)
+            for workout in recentWorkouts {
+                guard let exercises = workout.value(forKey: "exercises") as? NSSet else { continue }
+                for case let workoutExercise as NSManagedObject in exercises {
+                    guard (workoutExercise.value(forKey: "name") as? String ?? "") == exerciseName,
+                          let sets = workoutExercise.value(forKey: "sets") as? NSSet else { continue }
+                    for case let setObj as NSManagedObject in sets {
+                        guard (setObj.value(forKey: "setNumber") as? Int16 ?? -1) == setNumber else { continue }
+                        let key = "heat_\(setObj.objectID.uriRepresentation().absoluteString)"
+                        let heat = UserDefaults.standard.integer(forKey: key)
+                        if heat > 0 { return heat }
+                    }
+                }
+            }
+        } catch {
+            print("ERROR: getLastWorkoutHeatRating failed: \(error)")
+        }
+        return 0
+    }
+
     private func getLastSet(for workoutExercise: NSManagedObject) -> NSManagedObject? {
         let fetchRequest = NSFetchRequest<NSManagedObject>(entityName: "ExerciseSet")
         fetchRequest.predicate = NSPredicate(format: "workoutExercise == %@", workoutExercise)

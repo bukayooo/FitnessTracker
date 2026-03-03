@@ -353,7 +353,16 @@ struct AllWorkoutsView: View {
 struct WorkoutDetailView: View {
     @Environment(\.dismiss) private var dismiss
     let workout: NSManagedObject
-    
+
+    private func heatColor(_ rating: Int) -> Color {
+        switch rating {
+        case 1...3: return .green
+        case 4...6: return .orange
+        case 7...8: return Color(red: 1.0, green: 0.4, blue: 0.0)
+        default:    return .red
+        }
+    }
+
     private var templateName: String {
         if let template = workout.value(forKey: "template") as? NSManagedObject {
             return template.value(forKey: "name") as? String ?? "Custom Workout"
@@ -434,11 +443,24 @@ struct WorkoutDetailView: View {
                             }
                             
                             ForEach(sortedSets, id: \.self) { set in
+                                let heat = UserDefaults.standard.integer(
+                                    forKey: "heat_\(set.objectID.uriRepresentation().absoluteString)"
+                                )
                                 HStack {
                                     Text("Set \((set.value(forKey: "setNumber") as? Int16 ?? 0) + 1)")
                                     Spacer()
-                                    Text("\(set.value(forKey: "reps") as? Int16 ?? 0) reps × \(String(format: "%.1f", set.value(forKey: "weight") as? Double ?? 0.0))")
+                                    Text("\(set.value(forKey: "reps") as? Int16 ?? 0) reps × \(String(format: "%.1f", set.value(forKey: "weight") as? Double ?? 0.0)) lbs.")
                                         .foregroundColor(.secondary)
+                                    if heat > 0 {
+                                        HStack(spacing: 2) {
+                                            Image(systemName: "flame.fill")
+                                                .font(.caption2)
+                                            Text("\(heat)")
+                                                .font(.caption)
+                                                .fontWeight(.semibold)
+                                        }
+                                        .foregroundColor(heatColor(heat))
+                                    }
                                 }
                             }
                         }
