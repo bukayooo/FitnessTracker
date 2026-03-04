@@ -21,7 +21,8 @@ struct WorkoutView: View {
     @State private var editedTemplateName: String = ""
     
     @State private var setValues: [String: (reps: Int16, weight: Double)] = [:]
-    
+    @State private var showingRestTimer = false
+
     // Warmup states
     @State private var isShowingWarmupTimer = false
     @State private var warmups: [String] = []
@@ -170,6 +171,7 @@ struct WorkoutView: View {
                     workoutManager: workoutManager,
                     timerManager: timerManager,
                     setValues: $setValues,
+                    showingRestTimer: $showingRestTimer,
                     isTemplateView: isTemplateView,
                     isEditing: isEditing,
                     onDelete: isEditing ? { deleteExercise(exercise) } : nil
@@ -388,6 +390,10 @@ struct WorkoutView: View {
                     }
                 }
             }
+            .sheet(isPresented: $showingRestTimer) {
+                RestTimerView(showingRestTimer: $showingRestTimer)
+                    .environmentObject(timerManager)
+            }
             .alert("Cancel Workout", isPresented: $showingCancelAlert) {
                 Button("Cancel Workout", role: .destructive) {
                     workoutManager.deleteWorkout(workout)
@@ -567,7 +573,8 @@ struct ExerciseCard: View {
     let workoutManager: WorkoutManager
     let timerManager: TimerManager
     @Binding var setValues: [String: (reps: Int16, weight: Double)]
-    
+    @Binding var showingRestTimer: Bool
+
     var isTemplateView: Bool = false
     var isEditing: Bool = false
     var onDelete: (() -> Void)? = nil
@@ -680,6 +687,7 @@ struct ExerciseCard: View {
                             setNumber: index,
                             isActive: activeSetIndex == index,
                             setValues: $setValues,
+                            showingRestTimer: $showingRestTimer,
                             activateNextSet: {
                                 if index < sets.count - 1 {
                                     activeSetIndex = index + 1
@@ -734,11 +742,11 @@ struct SetRow: View {
     let setNumber: Int
     let isActive: Bool
     @Binding var setValues: [String: (reps: Int16, weight: Double)]
+    @Binding var showingRestTimer: Bool
     let activateNextSet: () -> Void
     let workoutManager: WorkoutManager
     let timerManager: TimerManager
-    
-    @State private var showingRestTimer = false
+
     @State private var showRestButton = false
     @FocusState private var isTextFieldFocused: Bool
     @State private var previousSetData: (reps: Int16, weight: Double)? = nil
@@ -1009,13 +1017,6 @@ struct SetRow: View {
                 .buttonStyle(.plain)
                 .padding(.top, 4)
             }
-        }
-        // Sheet must live outside any conditional so it is always present in the
-        // view hierarchy. Placing it inside `if showRestButton` causes SwiftUI to
-        // remove and re-add the modifier on re-renders, which dismisses the sheet.
-        .sheet(isPresented: $showingRestTimer) {
-            RestTimerView(showingRestTimer: $showingRestTimer)
-                .environmentObject(timerManager)
         }
     }
 }
