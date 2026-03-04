@@ -491,6 +491,8 @@ class WorkoutManager: ObservableObject {
     }
     
     func deleteWorkout(_ workout: NSManagedObject) {
+        pendingSetSave?.cancel()
+        pendingSetSave = nil
         viewContext.delete(workout)
         saveContext()
     }

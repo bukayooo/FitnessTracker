@@ -9,6 +9,7 @@ import Foundation
 import Combine
 import SwiftUI
 import UserNotifications
+import AVFoundation
 
 class TimerManager: ObservableObject {
     // MARK: - Properties
@@ -38,6 +39,7 @@ class TimerManager: ObservableObject {
     private var initialRestDuration: Int = 0
     private var pausedElapsedTime: Int = 0
     private var appPhaseObserver: AnyCancellable?
+    private var audioPlayer: AVAudioPlayer?
     
     init() {
         // Request notification authorization with more options
@@ -152,8 +154,23 @@ class TimerManager: ObservableObject {
         return totalDuration
     }
     
+    // MARK: - Audio
+
+    private func playTimerChime() {
+        guard let url = Bundle.main.url(forResource: "FitnessTracker_Timer_chime_01", withExtension: "wav") else {
+            print("DEBUG: 🔔 FitnessTracker_Timer_chime_01.wav not found in bundle")
+            return
+        }
+        do {
+            audioPlayer = try AVAudioPlayer(contentsOf: url)
+            audioPlayer?.play()
+        } catch {
+            print("DEBUG: 🔔 Failed to play timer chime: \(error)")
+        }
+    }
+
     // MARK: - Timer State Persistence
-    
+
     private func saveTimerState() {
         // Save workout timer state
         UserDefaults.standard.set(isWorkoutTimerActive, forKey: "workout_timer_active")
@@ -317,7 +334,8 @@ class TimerManager: ObservableObject {
     }
     
     private func handleRestTimerCompletion() {
-        
+        playTimerChime()
+
         // Check if app is active to show in-app notification
         if let windowScene = UIApplication.shared.connectedScenes.first(where: { $0 is UIWindowScene }) as? UIWindowScene,
            let window = windowScene.windows.first(where: { $0.isKeyWindow }) {
@@ -478,8 +496,9 @@ class TimerManager: ObservableObject {
     func moveToNextWarmup() {
         warmupTimer?.cancel()
         warmupTimer = nil
+        playTimerChime()
         currentWarmupIndex += 1
-        
+
         if currentWarmupIndex < warmups.count {
             // Move to the next warmup with its duration
             warmupTimeRemaining = warmupDurations[currentWarmupIndex]

@@ -227,16 +227,11 @@ struct WorkoutTabView: View {
                 SelectTemplateView(selectedTemplate: $selectedTemplate)
             }
             .sheet(item: $selectedTemplate) { identifiableTemplate in
-                // Explicitly create the WorkoutView with all required parameters
-                WorkoutView(
-                    workout: identifiableTemplate.object,
-                    workoutManager: self.workoutManager
-                )
-                .environment(\.managedObjectContext, viewContext)
-                .onDisappear {
-                    // Reset selectedTemplate to prevent reuse of stale data
-                    selectedTemplate = nil
-                }
+                TemplateDetailView(template: identifiableTemplate.object)
+                    .environment(\.managedObjectContext, viewContext)
+                    .onDisappear {
+                        selectedTemplate = nil
+                    }
             }
             .sheet(isPresented: $showingBlankWorkout) {
                 if let workout = blankWorkout {

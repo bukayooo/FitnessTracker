@@ -273,21 +273,66 @@ struct CreateTemplateView: View {
     
     @State private var templateName = ""
     @State private var exercises: [TemplateExerciseItem] = []
+    @State private var warmups: [(name: String, duration: Int)] = []
     @State private var showingAddExercise = false
-    
+    @State private var showingAddWarmup = false
+    @State private var newWarmupName = ""
+
     struct TemplateExerciseItem: Identifiable {
         let id = UUID()
         var name: String
         var order: Int
     }
-    
+
     var body: some View {
         NavigationStack {
             Form {
                 Section(header: Text("Template Name")) {
                     TextField("e.g. Upper Body, Leg Day", text: $templateName)
                 }
-                
+
+                Section(header: Text("Warmups")) {
+                    if !warmups.isEmpty {
+                        ForEach(warmups.indices, id: \.self) { index in
+                            HStack {
+                                Text(warmups[index].name)
+                                    .frame(width: 125, alignment: .leading)
+                                    .lineLimit(2)
+                                    .truncationMode(.tail)
+                                Spacer()
+                                HStack(spacing: 8) {
+                                    Stepper("", value: $warmups[index].duration, in: 5...60, step: 5)
+                                        .labelsHidden()
+                                    Text("\(warmups[index].duration) sec")
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                        }
+                        .onDelete { offsets in warmups.remove(atOffsets: offsets) }
+                    }
+
+                    Button {
+                        showingAddWarmup = true
+                    } label: {
+                        HStack {
+                            Image(systemName: "plus.circle.fill")
+                            Text("Add Warmup")
+                        }
+                    }
+                    .alert("Add Warmup", isPresented: $showingAddWarmup) {
+                        TextField("Warmup Name", text: $newWarmupName)
+                        Button("Cancel", role: .cancel) {}
+                        Button("Add") {
+                            if !newWarmupName.isEmpty {
+                                warmups.append((name: newWarmupName, duration: 15))
+                                newWarmupName = ""
+                            }
+                        }
+                    } message: {
+                        Text("Enter the name of the warmup exercise")
+                    }
+                }
+
                 Section(header: Text("Exercises")) {
                     ForEach(exercises) { exercise in
                         HStack {
@@ -372,12 +417,18 @@ struct CreateTemplateView: View {
         let template = workoutManager.createTemplate(name: templateName)
         print("DEBUG: Template created with id: \(template.objectID)")
         
+        // Add warmups to the template
+        for warmup in warmups {
+            workoutManager.addWarmup(to: template, name: warmup.name, duration: warmup.duration)
+            print("DEBUG: Added warmup: \(warmup.name) (\(warmup.duration)s)")
+        }
+
         // Add exercises to the template
         for exercise in exercises {
             let newExercise = workoutManager.addExercise(to: template, name: exercise.name)
             print("DEBUG: Added exercise: \(exercise.name) with id: \(newExercise.objectID)")
         }
-        
+
         print("DEBUG: All template data saved")
         
         // Request the parent view to refresh its templates list when dismissed
