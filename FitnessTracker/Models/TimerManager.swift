@@ -11,7 +11,7 @@ import SwiftUI
 import UserNotifications
 import AVFoundation
 
-class TimerManager: ObservableObject {
+class TimerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
     // MARK: - Properties
     @Published var workoutElapsedSeconds: Int = 0
     @Published var restTimeRemaining: Int = 0
@@ -41,7 +41,8 @@ class TimerManager: ObservableObject {
     private var appPhaseObserver: AnyCancellable?
     private var audioPlayer: AVAudioPlayer?
     
-    init() {
+    override init() {
+        super.init()
         // Request notification authorization with more options
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge, .provisional]) { granted, error in
             if granted {
@@ -162,10 +163,22 @@ class TimerManager: ObservableObject {
             return
         }
         do {
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.playback, options: [])
+            try session.setActive(true)
             audioPlayer = try AVAudioPlayer(contentsOf: url)
+            audioPlayer?.delegate = self
             audioPlayer?.play()
         } catch {
             print("DEBUG: 🔔 Failed to play timer chime: \(error)")
+        }
+    }
+
+    func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+        do {
+            try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        } catch {
+            print("DEBUG: 🔔 Failed to deactivate audio session: \(error)")
         }
     }
 
