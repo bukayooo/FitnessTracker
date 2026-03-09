@@ -8,7 +8,22 @@
 
 /* Begin PBXBuildFile section */
 		1CFE5CBE2F12CCB000C8799C /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 1CFE5CBD2F12CCB000C8799C /* AppIcon.icon */; };
+		AA0001042F0000000000AA01 /* FitnessTrackerWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = AA0001012F0000000000AA01 /* FitnessTrackerWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		AA0001052F0000000000AA01 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				AA0001042F0000000000AA01 /* FitnessTrackerWidget.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXContainerItemProxy section */
 		1C2148592D6E6A4500CAC896 /* PBXContainerItemProxy */ = {
@@ -25,6 +40,13 @@
 			remoteGlobalIDString = 1C2148472D6E6A4300CAC896;
 			remoteInfo = FitnessTracker;
 		};
+		AA00010D2F0000000000AA01 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1C2148402D6E6A4300CAC896 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AA0001092F0000000000AA01;
+			remoteInfo = FitnessTrackerWidget;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
@@ -32,6 +54,7 @@
 		1C2148582D6E6A4500CAC896 /* FitnessTrackerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FitnessTrackerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		1C2148622D6E6A4500CAC896 /* FitnessTrackerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FitnessTrackerUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		1CFE5CBD2F12CCB000C8799C /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = AppIcon.icon; sourceTree = "<group>"; };
+		AA0001012F0000000000AA01 /* FitnessTrackerWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = FitnessTrackerWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -41,6 +64,13 @@
 				Info.plist,
 			);
 			target = 1C2148472D6E6A4300CAC896 /* FitnessTracker */;
+		};
+		AA0001032F0000000000AA01 /* Exceptions for "FitnessTrackerWidget" folder in "FitnessTrackerWidget" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = AA0001092F0000000000AA01 /* FitnessTrackerWidget */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -61,6 +91,14 @@
 		1C2148652D6E6A4500CAC896 /* FitnessTrackerUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = FitnessTrackerUITests;
+			sourceTree = "<group>";
+		};
+		AA0001022F0000000000AA01 /* FitnessTrackerWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				AA0001032F0000000000AA01 /* Exceptions for "FitnessTrackerWidget" folder in "FitnessTrackerWidget" target */,
+			);
+			path = FitnessTrackerWidget;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -87,6 +125,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		AA0001062F0000000000AA01 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -97,6 +142,7 @@
 				1C21484A2D6E6A4300CAC896 /* FitnessTracker */,
 				1C21485B2D6E6A4500CAC896 /* FitnessTrackerTests */,
 				1C2148652D6E6A4500CAC896 /* FitnessTrackerUITests */,
+				AA0001022F0000000000AA01 /* FitnessTrackerWidget */,
 				1C2148492D6E6A4300CAC896 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -107,6 +153,7 @@
 				1C2148482D6E6A4300CAC896 /* FitnessTracker.app */,
 				1C2148582D6E6A4500CAC896 /* FitnessTrackerTests.xctest */,
 				1C2148622D6E6A4500CAC896 /* FitnessTrackerUITests.xctest */,
+				AA0001012F0000000000AA01 /* FitnessTrackerWidget.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -121,10 +168,12 @@
 				1C2148442D6E6A4300CAC896 /* Sources */,
 				1C2148452D6E6A4300CAC896 /* Frameworks */,
 				1C2148462D6E6A4300CAC896 /* Resources */,
+				AA0001052F0000000000AA01 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				AA00010E2F0000000000AA01 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				1C21484A2D6E6A4300CAC896 /* FitnessTracker */,
@@ -135,6 +184,28 @@
 			productName = FitnessTracker;
 			productReference = 1C2148482D6E6A4300CAC896 /* FitnessTracker.app */;
 			productType = "com.apple.product-type.application";
+		};
+		AA0001092F0000000000AA01 /* FitnessTrackerWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AA00010A2F0000000000AA01 /* Build configuration list for PBXNativeTarget "FitnessTrackerWidget" */;
+			buildPhases = (
+				AA0001072F0000000000AA01 /* Sources */,
+				AA0001062F0000000000AA01 /* Frameworks */,
+				AA0001082F0000000000AA01 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				AA0001022F0000000000AA01 /* FitnessTrackerWidget */,
+			);
+			name = FitnessTrackerWidget;
+			packageProductDependencies = (
+			);
+			productName = FitnessTrackerWidget;
+			productReference = AA0001012F0000000000AA01 /* FitnessTrackerWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 		1C2148572D6E6A4500CAC896 /* FitnessTrackerTests */ = {
 			isa = PBXNativeTarget;
@@ -203,6 +274,9 @@
 						CreatedOnToolsVersion = 16.2;
 						TestTargetID = 1C2148472D6E6A4300CAC896;
 					};
+				AA0001092F0000000000AA01 = {
+						CreatedOnToolsVersion = 16.2;
+					};
 				};
 			};
 			buildConfigurationList = 1C2148432D6E6A4300CAC896 /* Build configuration list for PBXProject "FitnessTracker" */;
@@ -222,11 +296,20 @@
 				1C2148472D6E6A4300CAC896 /* FitnessTracker */,
 				1C2148572D6E6A4500CAC896 /* FitnessTrackerTests */,
 				1C2148612D6E6A4500CAC896 /* FitnessTrackerUITests */,
+				AA0001092F0000000000AA01 /* FitnessTrackerWidget */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		AA0001082F0000000000AA01 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+
 		1C2148462D6E6A4300CAC896 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -252,6 +335,14 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		AA0001072F0000000000AA01 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+
 		1C2148442D6E6A4300CAC896 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -285,6 +376,11 @@
 			isa = PBXTargetDependency;
 			target = 1C2148472D6E6A4300CAC896 /* FitnessTracker */;
 			targetProxy = 1C2148632D6E6A4500CAC896 /* PBXContainerItemProxy */;
+		};
+		AA00010E2F0000000000AA01 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AA0001092F0000000000AA01 /* FitnessTrackerWidget */;
+			targetProxy = AA00010D2F0000000000AA01 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -538,6 +634,58 @@
 			};
 			name = Release;
 		};
+		AA00010B2F0000000000AA01 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 9YYZ7P7Y9Q;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = FitnessTrackerWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = FitnessTrackerWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "Spruce.FitnessTracker.FitnessTrackerWidget";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		AA00010C2F0000000000AA01 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 9YYZ7P7Y9Q;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = FitnessTrackerWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = FitnessTrackerWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "Spruce.FitnessTracker.FitnessTrackerWidget";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -573,6 +721,15 @@
 			buildConfigurations = (
 				1C2148732D6E6A4500CAC896 /* Debug */,
 				1C2148742D6E6A4500CAC896 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AA00010A2F0000000000AA01 /* Build configuration list for PBXNativeTarget "FitnessTrackerWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA00010B2F0000000000AA01 /* Debug */,
+				AA00010C2F0000000000AA01 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

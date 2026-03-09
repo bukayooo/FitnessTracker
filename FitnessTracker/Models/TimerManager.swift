@@ -10,6 +10,7 @@ import Combine
 import SwiftUI
 import UserNotifications
 import AVFoundation
+import ActivityKit
 
 class TimerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
     // MARK: - Properties
@@ -36,10 +37,15 @@ class TimerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
     private var warmupTimer: AnyCancellable?
     private var workoutStartTime: Date?
     private var restStartTime: Date?
+    private var warmupStartTime: Date?   // Tracks when the current warmup step began
     private var initialRestDuration: Int = 0
     private var pausedElapsedTime: Int = 0
     private var appPhaseObserver: AnyCancellable?
     private var audioPlayer: AVAudioPlayer?
+
+    // Live Activity handles
+    private var restTimerActivity: Activity<FitnessTimerAttributes>?
+    private var warmupTimerActivity: Activity<FitnessTimerAttributes>?
     
     override init() {
         super.init()
@@ -271,7 +277,7 @@ class TimerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
     func handleAppBecameActive() {
         print("DEBUG: TimerManager - App became active")
 
-        // Restore workout timer state
+        // Restore workout/rest timer state (handles app-kill + relaunch)
         restoreTimerStateIfNeeded()
 
         // Update workout timer if active
@@ -284,34 +290,82 @@ class TimerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
         if isRestTimerActive, let startTime = restStartTime {
             let elapsedTime = Int(Date().timeIntervalSince(startTime))
             let newTimeRemaining = max(0, initialRestDuration - elapsedTime)
-
             print("DEBUG: ⏱️ Recalculating rest timer: elapsed=\(elapsedTime)s, remaining=\(newTimeRemaining)s")
-
             if newTimeRemaining > 0 {
-                // Update remaining time
                 restTimeRemaining = newTimeRemaining
             } else {
-                // Timer should have completed while app was inactive
                 print("DEBUG: ⏱️ Rest timer completed while app was inactive")
                 handleRestTimerCompletion()
             }
         }
+
+        // Recalculate warmup timer if it was running before backgrounding
+        recalculateWarmupIfNeeded()
     }
-    
+
     // Method to handle app going to background
     func handleAppWentToBackground() {
         print("DEBUG: 📱 App transitioning to background")
-        print("DEBUG: 📱 Timer states - Rest timer active: \(isRestTimerActive), Workout timer active: \(isWorkoutTimerActive)")
+        print("DEBUG: 📱 Timer states - Rest: \(isRestTimerActive), Workout: \(isWorkoutTimerActive), Warmup: \(isWarmupTimerActive)")
         saveTimerState()
-        
-        // If rest timer is active, ensure notification is scheduled
+
         if isRestTimerActive {
-            print("DEBUG: 📱 Rest timer is active, scheduling notification before background")
-            print("DEBUG: 📱 Rest timer remaining time: \(restTimeRemaining)s")
+            print("DEBUG: 📱 Rest timer active — scheduling background notification")
             scheduleRestTimerNotification()
-        } else {
-            print("DEBUG: 📱 Rest timer not active, no notification needed")
         }
+
+        if isWarmupTimerActive && !isWarmupTimerPaused {
+            print("DEBUG: 📱 Warmup timer active — scheduling background notification")
+            scheduleWarmupCompletionNotification()
+        }
+    }
+
+    /// Recalculates warmup progress after the app returns from background.
+    /// Uses the in-memory `warmupStartTime` that was set when the current step began.
+    private func recalculateWarmupIfNeeded() {
+        guard isWarmupTimerActive, !isWarmupTimerPaused, let startTime = warmupStartTime else { return }
+
+        // Cancel the paused in-app timer so we can restart it from the right position
+        warmupTimer?.cancel()
+        warmupTimer = nil
+
+        var elapsedSinceStepStart = Int(Date().timeIntervalSince(startTime))
+        var stepIndex = currentWarmupIndex
+
+        // Advance through any steps that finished while the app was backgrounded
+        while stepIndex < warmups.count {
+            let stepDuration = warmupDurations[stepIndex]
+            if elapsedSinceStepStart < stepDuration {
+                // Still inside this step — update state and restart
+                currentWarmupIndex = stepIndex
+                warmupTimeRemaining = stepDuration - elapsedSinceStepStart
+                warmupStartTime = Date().addingTimeInterval(-TimeInterval(elapsedSinceStepStart))
+                print("DEBUG: ⏱️ Warmup resumed at step \(stepIndex), \(warmupTimeRemaining)s remaining")
+
+                // Update Live Activity with new end time
+                updateWarmupLiveActivity()
+
+                // Restart the in-app countdown
+                warmupTimer = Timer.publish(every: 1, on: .main, in: .common)
+                    .autoconnect()
+                    .sink { [weak self] _ in
+                        guard let self = self else { return }
+                        if self.warmupTimeRemaining > 0 {
+                            self.warmupTimeRemaining -= 1
+                        } else {
+                            self.moveToNextWarmup()
+                        }
+                    }
+                return
+            }
+            // This step is done — advance
+            elapsedSinceStepStart -= stepDuration
+            stepIndex += 1
+        }
+
+        // All steps completed while in background
+        print("DEBUG: ⏱️ All warmup steps completed while in background")
+        stopWarmupTimer()
     }
     
     // MARK: - Rest Timer Methods
@@ -330,6 +384,9 @@ class TimerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
 
         // Schedule local notification for rest timer completion
         scheduleRestTimerNotification()
+
+        // Start Live Activity
+        startRestTimerLiveActivity(duration: initialRestDuration)
 
         restTimer = Timer.publish(every: 1, on: .main, in: .common)
             .autoconnect()
@@ -384,6 +441,9 @@ class TimerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
         restTimeRemaining = 0
         restStartTime = nil
         initialRestDuration = 0
+
+        // End Live Activity
+        endRestTimerLiveActivity()
 
         // Post notification that rest timer is complete with manual stop flag
         NotificationCenter.default.post(
@@ -490,10 +550,14 @@ class TimerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
     
     func startCurrentWarmup() {
         guard isWarmupTimerActive && isWarmupTimerPaused else { return }
-        
+
         isWarmupTimerPaused = false
+        warmupStartTime = Date()
         print("DEBUG: ⏱️ Starting warmup timer for '\(currentWarmupName ?? "unknown")'")
-        
+
+        // Start Live Activity for this warmup step
+        startWarmupLiveActivity()
+
         warmupTimer = Timer.publish(every: 1, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
@@ -509,16 +573,17 @@ class TimerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
     func moveToNextWarmup() {
         warmupTimer?.cancel()
         warmupTimer = nil
+        warmupStartTime = nil
         playTimerChime()
         currentWarmupIndex += 1
 
         if currentWarmupIndex < warmups.count {
-            // Move to the next warmup with its duration
             warmupTimeRemaining = warmupDurations[currentWarmupIndex]
             isWarmupTimerPaused = true
             print("DEBUG: ⏱️ Moving to next warmup '\(warmups[currentWarmupIndex])' with duration: \(warmupTimeRemaining)s")
+            // End the Live Activity — it will restart when user taps Start for the next step
+            endWarmupLiveActivity()
         } else {
-            // All warmups are completed
             print("DEBUG: ⏱️ All warmups completed")
             stopWarmupTimer()
         }
@@ -527,16 +592,23 @@ class TimerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
     func stopWarmupTimer() {
         print("DEBUG: 🛑 stopWarmupTimer() called - clearing \(warmups.count) warmups")
         print("DEBUG: 🛑 Current warmups before clearing: \(warmups)")
-        
+
         warmupTimer?.cancel()
         warmupTimer = nil
+        warmupStartTime = nil
         isWarmupTimerActive = false
         warmupTimeRemaining = 0
         currentWarmupIndex = 0
-        
+
+        // Cancel background notification
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["warmupTimer"])
+
+        // End Live Activity
+        endWarmupLiveActivity()
+
         // Post notification that warmup timer is complete
         NotificationCenter.default.post(name: NSNotification.Name("WarmupTimerComplete"), object: nil)
-        
+
         warmups = []
         warmupDurations = []
         print("DEBUG: 🛑 Warmups cleared, new count: \(warmups.count)")
@@ -566,6 +638,121 @@ class TimerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
         return String(format: "%d:%02d", minutes, remainingSeconds)
     }
     
+    // MARK: - Warmup Background Notification
+
+    private func scheduleWarmupCompletionNotification() {
+        guard let startTime = warmupStartTime, currentWarmupIndex < warmupDurations.count else { return }
+
+        // Fire when the CURRENT step ends — same pattern as the rest timer.
+        // The user can tap the notification to return to the app and start the next step.
+        let elapsedInCurrentStep = Int(Date().timeIntervalSince(startTime))
+        let remainingInCurrentStep = max(0, warmupDurations[currentWarmupIndex] - elapsedInCurrentStep)
+
+        guard remainingInCurrentStep > 0 else { return }
+
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["warmupTimer"])
+
+        let content = UNMutableNotificationContent()
+        let isLastStep = currentWarmupIndex == warmups.count - 1
+        if isLastStep {
+            content.title = "Warmup Complete"
+            content.body = "Time to start your workout!"
+        } else {
+            let nextStepName = warmups[currentWarmupIndex + 1]
+            content.title = "Warmup Step Complete"
+            content.body = "Tap to start \(nextStepName)."
+        }
+        content.sound = .default
+
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: TimeInterval(remainingInCurrentStep), repeats: false)
+        let request = UNNotificationRequest(identifier: "warmupTimer", content: content, trigger: trigger)
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("DEBUG: ⏱️ Failed to schedule warmup notification: \(error)")
+            }
+        }
+    }
+
+    // MARK: - Live Activities
+
+    private func startRestTimerLiveActivity(duration: Int) {
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+
+        let endTime = Date().addingTimeInterval(TimeInterval(duration))
+        let attributes = FitnessTimerAttributes(timerType: .rest)
+        let state = FitnessTimerAttributes.ContentState(
+            endTime: endTime,
+            label: "Rest Timer",
+            stepIndex: 1,
+            totalSteps: 1
+        )
+        do {
+            restTimerActivity = try Activity<FitnessTimerAttributes>.request(
+                attributes: attributes,
+                content: .init(state: state, staleDate: endTime.addingTimeInterval(5))
+            )
+            print("DEBUG: 🟢 Rest timer Live Activity started")
+        } catch {
+            print("DEBUG: 🔴 Failed to start rest timer Live Activity: \(error)")
+        }
+    }
+
+    private func endRestTimerLiveActivity() {
+        Task {
+            await restTimerActivity?.end(nil, dismissalPolicy: .immediate)
+            restTimerActivity = nil
+        }
+    }
+
+    private func startWarmupLiveActivity() {
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+        guard currentWarmupIndex < warmups.count else { return }
+
+        // End any existing warmup activity before starting a new one
+        Task { await warmupTimerActivity?.end(nil, dismissalPolicy: .immediate) }
+
+        let endTime = Date().addingTimeInterval(TimeInterval(warmupTimeRemaining))
+        let attributes = FitnessTimerAttributes(timerType: .warmup)
+        let state = FitnessTimerAttributes.ContentState(
+            endTime: endTime,
+            label: warmups[currentWarmupIndex],
+            stepIndex: currentWarmupIndex + 1,
+            totalSteps: warmups.count
+        )
+        do {
+            warmupTimerActivity = try Activity<FitnessTimerAttributes>.request(
+                attributes: attributes,
+                content: .init(state: state, staleDate: endTime.addingTimeInterval(5))
+            )
+            print("DEBUG: 🟢 Warmup Live Activity started for '\(warmups[currentWarmupIndex])'")
+        } catch {
+            print("DEBUG: 🔴 Failed to start warmup Live Activity: \(error)")
+        }
+    }
+
+    private func updateWarmupLiveActivity() {
+        guard let activity = warmupTimerActivity else { return }
+        guard currentWarmupIndex < warmups.count else { return }
+
+        let endTime = Date().addingTimeInterval(TimeInterval(warmupTimeRemaining))
+        let state = FitnessTimerAttributes.ContentState(
+            endTime: endTime,
+            label: warmups[currentWarmupIndex],
+            stepIndex: currentWarmupIndex + 1,
+            totalSteps: warmups.count
+        )
+        Task {
+            await activity.update(.init(state: state, staleDate: endTime.addingTimeInterval(5)))
+        }
+    }
+
+    private func endWarmupLiveActivity() {
+        Task {
+            await warmupTimerActivity?.end(nil, dismissalPolicy: .immediate)
+            warmupTimerActivity = nil
+        }
+    }
+
     // MARK: - Cleanup
     deinit {
         workoutTimer?.cancel()

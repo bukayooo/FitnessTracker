@@ -35,6 +35,7 @@ struct WorkoutView: View {
     @State private var hasLoggedWorkoutTimer = false
     @State private var hasLoggedWarmupStart = false
     @State private var hasLoggedWarmupLoading = false
+    @AppStorage("siriShortcutsEnabled") private var siriShortcutsEnabled = true
     
     init(workout: NSManagedObject, workoutManager: WorkoutManager) {
         
@@ -258,14 +259,11 @@ struct WorkoutView: View {
                 loadWarmupsAndStartTimerIfNeeded()
                 warmupsLoaded = true
 
-                // DISABLED: Siri feature requires paid Apple Developer account
-                /*
-                // Donate Siri shortcut and execute background shortcut when workout view appears
-                let workoutName = templateName
-                print("DEBUG: 🎤 Donating Siri shortcut for workout: \(workoutName)")
-                SiriShortcutsManager.shared.donateStartWorkoutIntent(templateName: workoutName)
-                SiriShortcutsManager.shared.executeBackgroundShortcut(for: workoutName)
-                */
+                if siriShortcutsEnabled && !isTemplateView {
+                    let workoutName = templateName
+                    SiriShortcutsManager.shared.donateStartWorkoutIntent(templateName: workoutName)
+                    SiriShortcutsManager.shared.executeBackgroundShortcut(for: workoutName)
+                }
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("StartWorkoutFromTemplate"))) { notification in
@@ -276,18 +274,11 @@ struct WorkoutView: View {
             
             print("DEBUG: 🎤 StartWorkoutFromTemplate - isTemplateView: \(isTemplateView), templateName: '\(templateName)'")
 
-            // DISABLED: Siri feature requires paid Apple Developer account
-            /*
-            // Donate Siri shortcut and execute background shortcut when workout starts
-            if !isTemplateView {
+            if siriShortcutsEnabled && !isTemplateView {
                 let workoutName = templateName
-                print("DEBUG: 🎤 Donating Siri shortcut for workout: \(workoutName)")
                 SiriShortcutsManager.shared.donateStartWorkoutIntent(templateName: workoutName)
                 SiriShortcutsManager.shared.executeBackgroundShortcut(for: workoutName)
-            } else {
-                print("DEBUG: 🎤 Skipping Siri shortcuts because isTemplateView=\(isTemplateView)")
             }
-            */
             
             if !isTemplateView && !warmupsLoaded {
                 if !hasLoggedNotification {

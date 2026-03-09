@@ -61,7 +61,7 @@ class SiriShortcutsManager: ObservableObject {
     /// Executes a custom shortcut in the background when a workout starts
     func executeBackgroundShortcut(for templateName: String) {
         // Execute the shortcut without leaving the app
-        executeShortcut(named: "Workout Started", parameters: ["workoutName": templateName])
+        executeShortcut(named: "Start Workout", parameters: ["workoutName": templateName])
     }
     
     private func executeShortcut(named shortcutName: String, parameters: [String: Any] = [:]) {

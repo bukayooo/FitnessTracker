@@ -22,8 +22,8 @@
     <array>
         <string>processing</string>
     </array>
-    <!-- DISABLED: Siri feature requires paid Apple Developer account -->
-    <!--
+    <key>NSSupportsLiveActivities</key>
+    <true/>
     <key>NSSiriUsageDescription</key>
     <string>This app integrates with Siri to quickly start your workouts using voice commands.</string>
     <key>NSUserActivityTypes</key>
@@ -41,6 +41,5 @@
             </array>
         </dict>
     </array>
-    -->
 </dict>
 </plist>

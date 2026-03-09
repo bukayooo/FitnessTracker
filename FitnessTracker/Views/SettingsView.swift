@@ -9,6 +9,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @AppStorage("weightSuggestionEnabled") private var weightSuggestionEnabled = true
+    @AppStorage("siriShortcutsEnabled") private var siriShortcutsEnabled = true
 
     var body: some View {
         NavigationStack {
@@ -23,11 +24,18 @@ struct SettingsView: View {
                                 .foregroundColor(.secondary)
                         }
                     }
+                    Toggle(isOn: $siriShortcutsEnabled) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Siri Shortcuts")
+                                .font(.body)
+                            Text("Automatically start a Siri shortcut when you start a workout. It must be named \"Start Workout.\"")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
                 } header: {
                     Text("Workout")
-                } footer: {
-                    Text("When enabled, an orange number appears in the weight field suggesting a weight based on how hard your last set felt (heat rating).")
-                }
+                } 
 
                 Section {
                     HStack {
@@ -89,7 +97,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Heat Rating Scale")
                 } footer: {
-                    Text("Weights are rounded to the nearest 2.5 lbs.")
+                    Text("Weight suggestions are rounded to the nearest 2.5 lbs.")
                 }
             }
             .navigationTitle("Settings")

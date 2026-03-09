@@ -37,10 +37,7 @@ struct FitnessTrackerApp: App {
             ContentView()
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
                 .tint(.fitnessPrimary)
-                // DISABLED: Siri feature requires paid Apple Developer account
-                /*
                 .onOpenURL { url in
-                    print("DEBUG: 🎤 App opened with URL: \(url)")
                     // Handle return from Shortcuts app
                     if url.scheme == Bundle.main.bundleIdentifier {
                         print("DEBUG: 🎤 Returned from Shortcuts execution")
@@ -50,7 +47,6 @@ struct FitnessTrackerApp: App {
                     print("DEBUG: 🎤 Received user activity: \(userActivity.activityType)")
                     SiriShortcutsManager.shared.handleStartWorkoutActivity(userActivity)
                 }
-                */
         }
         .onChange(of: scenePhase) { oldPhase, newPhase in
             // Broadcast app state change so any active TimerManager instances can respond
