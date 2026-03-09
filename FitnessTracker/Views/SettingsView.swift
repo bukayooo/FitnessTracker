@@ -10,6 +10,7 @@ import SwiftUI
 struct SettingsView: View {
     @AppStorage("weightSuggestionEnabled") private var weightSuggestionEnabled = true
     @AppStorage("siriShortcutsEnabled") private var siriShortcutsEnabled = true
+    @AppStorage("timerChimeEnabled") private var timerChimeEnabled = true
 
     var body: some View {
         NavigationStack {
@@ -29,6 +30,15 @@ struct SettingsView: View {
                             Text("Siri Shortcuts")
                                 .font(.body)
                             Text("Automatically start a Siri shortcut when you start a workout. It must be named \"Start Workout.\"")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    Toggle(isOn: $timerChimeEnabled) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Timer Chime")
+                                .font(.body)
+                            Text("Play a chime when the warmup or rest timer finishes")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }

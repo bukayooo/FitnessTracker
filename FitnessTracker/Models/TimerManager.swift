@@ -49,6 +49,8 @@ class TimerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
     
     override init() {
         super.init()
+        // Register defaults so UserDefaults.bool returns true before the user visits Settings
+        UserDefaults.standard.register(defaults: ["timerChimeEnabled": true])
         // Request notification authorization with more options
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge, .provisional]) { granted, error in
             if granted {
@@ -164,6 +166,7 @@ class TimerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
     // MARK: - Audio
 
     private func playTimerChime() {
+        guard UserDefaults.standard.bool(forKey: "timerChimeEnabled") else { return }
         guard let url = Bundle.main.url(forResource: "FitnessTracker_Timer_chime_01", withExtension: "wav") else {
             print("DEBUG: 🔔 FitnessTracker_Timer_chime_01.wav not found in bundle")
             return
