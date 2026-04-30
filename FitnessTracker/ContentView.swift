@@ -111,6 +111,7 @@ struct WorkoutTabView: View {
     
     var body: some View {
         NavigationStack {
+            ScrollView {
             VStack(spacing: 16) {
                 // Error alert display
                 if let error = errorMessage, showingError {
@@ -212,8 +213,7 @@ struct WorkoutTabView: View {
                     .multilineTextAlignment(.center)
                     .padding(.horizontal)
                     .padding(.top, 8)
-
-                Spacer()
+                    .padding(.bottom)
             }
             .navigationTitle("Workout")
             .sheet(isPresented: $showingTemplateSelector) {
@@ -240,6 +240,7 @@ struct WorkoutTabView: View {
                     }
                 }
             }
+        }
         }
     }
     
