@@ -571,7 +571,9 @@ struct ExerciseCard: View {
     var onDelete: (() -> Void)? = nil
     
     @State private var activeSetIndex: Int?
-    
+    @AppStorage("uniformWeightSuggestionEnabled") private var uniformWeightSuggestionEnabled = false
+    @State private var uniformSuggestion: Double? = nil
+
     private var exerciseName: String {
         return exercise.value(forKey: "name") as? String ?? "Unknown Exercise"
     }
@@ -687,7 +689,8 @@ struct ExerciseCard: View {
                                 }
                             },
                             workoutManager: workoutManager,
-                            timerManager: timerManager
+                            timerManager: timerManager,
+                            uniformSuggestion: uniformSuggestion
                         )
                         
                         if index < sets.count - 1 {
@@ -724,6 +727,16 @@ struct ExerciseCard: View {
         .padding()
         .background(Color(.secondarySystemGroupedBackground))
         .cornerRadius(12)
+        .onAppear {
+            guard !isTemplateView, exercise.entity.name != "Exercise" else { return }
+            if uniformWeightSuggestionEnabled {
+                uniformSuggestion = workoutManager.getUniformWeightSuggestion(for: exercise)
+            }
+        }
+        .onChange(of: uniformWeightSuggestionEnabled) { enabled in
+            guard !isTemplateView, exercise.entity.name != "Exercise" else { return }
+            uniformSuggestion = enabled ? workoutManager.getUniformWeightSuggestion(for: exercise) : nil
+        }
     }
 }
 
@@ -737,6 +750,7 @@ struct SetRow: View {
     let activateNextSet: () -> Void
     let workoutManager: WorkoutManager
     let timerManager: TimerManager
+    var uniformSuggestion: Double? = nil
 
     @State private var showRestButton = false
     @FocusState private var isTextFieldFocused: Bool
@@ -768,6 +782,7 @@ struct SetRow: View {
 
     private var suggestedWeight: Double? {
         guard weightSuggestionEnabled else { return nil }
+        if let uniform = uniformSuggestion { return uniform }
         guard let prev = previousSetData, prev.weight > 0, previousHeatRating > 0 else { return nil }
         let multiplier: Double
         switch previousHeatRating {

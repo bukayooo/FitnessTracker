@@ -721,6 +721,61 @@ class WorkoutManager: ObservableObject {
         return 0
     }
 
+    // Returns the highest weight suggestion across all sets of an exercise from the last workout.
+    // Each set's suggestion is computed from its weight × heat-based multiplier; the max is returned
+    // so all sets share the same aggressive target, incentivizing pushing your limits.
+    func getUniformWeightSuggestion(for exercise: NSManagedObject) -> Double? {
+        let exerciseName = exercise.value(forKey: "name") as? String ?? ""
+        guard !exerciseName.isEmpty else { return nil }
+
+        let workoutRequest = NSFetchRequest<NSManagedObject>(entityName: "Workout")
+        workoutRequest.predicate = NSPredicate(format: "duration > 0")
+        workoutRequest.sortDescriptors = [NSSortDescriptor(key: "date", ascending: false)]
+        workoutRequest.fetchLimit = 10
+
+        do {
+            let recentWorkouts = try viewContext.fetch(workoutRequest)
+            for workout in recentWorkouts {
+                guard let exercises = workout.value(forKey: "exercises") as? NSSet else { continue }
+                for case let workoutExercise as NSManagedObject in exercises {
+                    guard (workoutExercise.value(forKey: "name") as? String ?? "") == exerciseName,
+                          let sets = workoutExercise.value(forKey: "sets") as? NSSet else { continue }
+
+                    var maxSuggestion: Double = 0
+                    var foundAny = false
+
+                    for case let setObj as NSManagedObject in sets {
+                        let weight = setObj.value(forKey: "weight") as? Double ?? 0
+                        guard weight > 0 else { continue }
+                        let key = "heat_\(setObj.objectID.uriRepresentation().absoluteString)"
+                        let heat = UserDefaults.standard.integer(forKey: key)
+                        guard heat > 0 else { continue }
+
+                        let multiplier: Double
+                        switch heat {
+                        case 1...2: multiplier = 1.15
+                        case 3...4: multiplier = 1.12
+                        case 5...6: multiplier = 1.08
+                        case 7:     multiplier = 1.05
+                        case 8:     multiplier = 1.03
+                        case 9:     multiplier = 1.00
+                        default:    multiplier = 1.00
+                        }
+
+                        let suggestion = ((weight * multiplier) / 2.5).rounded() * 2.5
+                        if suggestion > maxSuggestion { maxSuggestion = suggestion }
+                        foundAny = true
+                    }
+
+                    if foundAny { return maxSuggestion > 0 ? maxSuggestion : nil }
+                }
+            }
+        } catch {
+            print("ERROR: getUniformWeightSuggestion failed: \(error)")
+        }
+        return nil
+    }
+
     private func getLastSet(for workoutExercise: NSManagedObject) -> NSManagedObject? {
         let fetchRequest = NSFetchRequest<NSManagedObject>(entityName: "ExerciseSet")
         fetchRequest.predicate = NSPredicate(format: "workoutExercise == %@", workoutExercise)

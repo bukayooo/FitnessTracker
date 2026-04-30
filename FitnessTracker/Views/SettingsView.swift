@@ -9,8 +9,38 @@ import SwiftUI
 
 struct SettingsView: View {
     @AppStorage("weightSuggestionEnabled") private var weightSuggestionEnabled = true
+    @AppStorage("uniformWeightSuggestionEnabled") private var uniformWeightSuggestionEnabled = false
     @AppStorage("siriShortcutsEnabled") private var siriShortcutsEnabled = true
     @AppStorage("timerChimeEnabled") private var timerChimeEnabled = true
+    @State private var currentIconName: String? = UIApplication.shared.alternateIconName
+
+    private func setIcon(_ name: String?) {
+        guard UIApplication.shared.supportsAlternateIcons else { return }
+        UIApplication.shared.setAlternateIconName(name) { error in
+            if let error = error {
+                print("Error switching icon: \(error.localizedDescription)")
+            } else {
+                currentIconName = name
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func iconRow(label: String, iconName: String?) -> some View {
+        Button {
+            setIcon(iconName)
+        } label: {
+            HStack {
+                Text(label)
+                    .foregroundColor(.primary)
+                Spacer()
+                if currentIconName == iconName {
+                    Image(systemName: "checkmark")
+                        .foregroundColor(.accentColor)
+                }
+            }
+        }
+    }
 
     var body: some View {
         NavigationStack {
@@ -25,6 +55,16 @@ struct SettingsView: View {
                                 .foregroundColor(.secondary)
                         }
                     }
+                    Toggle(isOn: $uniformWeightSuggestionEnabled) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Uniform Weight Suggestion")
+                                .font(.body)
+                            Text("Show the same weight suggestion for all sets of an exercise, based on the highest suggestion across all your sets from the previous workout")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .disabled(!weightSuggestionEnabled)
                     Toggle(isOn: $siriShortcutsEnabled) {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Siri Shortcuts")
@@ -46,6 +86,13 @@ struct SettingsView: View {
                 } header: {
                     Text("Workout")
                 } 
+
+                Section {
+                    iconRow(label: "Default", iconName: nil)
+                    iconRow(label: "Alternate", iconName: "Icon1")
+                } header: {
+                    Text("App Icon")
+                }
 
                 Section {
                     HStack {
