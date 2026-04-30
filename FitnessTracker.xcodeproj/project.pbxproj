@@ -520,6 +520,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = FitnessTracker/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Heracle;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -552,6 +553,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = FitnessTracker/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Heracle;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -646,7 +648,7 @@
 				DEVELOPMENT_TEAM = 9YYZ7P7Y9Q;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = FitnessTrackerWidget/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = FitnessTrackerWidget;
+				INFOPLIST_KEY_CFBundleDisplayName = Heracle;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -672,7 +674,7 @@
 				DEVELOPMENT_TEAM = 9YYZ7P7Y9Q;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = FitnessTrackerWidget/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = FitnessTrackerWidget;
+				INFOPLIST_KEY_CFBundleDisplayName = Heracle;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
 				LD_RUNPATH_SEARCH_PATHS = (

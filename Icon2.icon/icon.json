@@ -6,6 +6,31 @@
     {
       "layers" : [
         {
+          "hidden" : false,
+          "image-name" : "fitnesstracker master copy 2.png",
+          "name" : "fitnesstracker master copy 2",
+          "position" : {
+            "scale" : 1.1,
+            "translation-in-points" : [
+              29.649999999999977,
+              29.649999999999977
+            ]
+          }
+        },
+        {
+          "hidden" : false,
+          "image-name" : "fitnesstracker master copy 2 2.png",
+          "name" : "fitnesstracker master copy 2 2",
+          "position" : {
+            "scale" : 1.1,
+            "translation-in-points" : [
+              29.649999999999977,
+              29.649999999999977
+            ]
+          }
+        },
+        {
+          "hidden" : true,
           "image-name" : "fitnesstracker master copy.png",
           "name" : "fitnesstracker master copy",
           "position" : {

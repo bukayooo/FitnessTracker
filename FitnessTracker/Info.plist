@@ -2,8 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+    <key>CFBundleDisplayName</key>
+    <string>Heracle</string>
     <key>CFBundleName</key>
-    <string>FitnessTracker</string>
+    <string>Heracle</string>
     <key>CFBundleIdentifier</key>
     <string>Spruce.FitnessTracker</string>
     <key>CFBundleVersion</key>

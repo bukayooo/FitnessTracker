@@ -16,7 +16,7 @@ extension Notification.Name {
 }
 
 @main
-struct FitnessTrackerApp: App {
+struct HeracleApp: App {
     let persistenceController = PersistenceController.shared
     
     @Environment(\.scenePhase) var scenePhase
