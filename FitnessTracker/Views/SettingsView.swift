@@ -6,12 +6,14 @@
 //
 
 import SwiftUI
+import CoreData
 
 struct SettingsView: View {
     @AppStorage("weightSuggestionEnabled") private var weightSuggestionEnabled = true
     @AppStorage("uniformWeightSuggestionEnabled") private var uniformWeightSuggestionEnabled = false
     @AppStorage("siriShortcutsEnabled") private var siriShortcutsEnabled = true
     @AppStorage("timerChimeEnabled") private var timerChimeEnabled = true
+    @AppStorage("dailyScheduleEnabled") private var dailyScheduleEnabled = false
     @State private var currentIconName: String? = UIApplication.shared.alternateIconName
 
     private func setIcon(_ name: String?) {
@@ -45,6 +47,25 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             List {
+                Section {
+                    Toggle(isOn: $dailyScheduleEnabled) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Daily Schedule")
+                                .font(.body)
+                            Text("Show only today's assigned template on the workout screen")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    if dailyScheduleEnabled {
+                        NavigationLink("Configure Schedule") {
+                            DailyScheduleView()
+                        }
+                    }
+                } header: {
+                    Text("Workout Screen")
+                }
+
                 Section {
                     Toggle(isOn: $weightSuggestionEnabled) {
                         VStack(alignment: .leading, spacing: 4) {
@@ -158,6 +179,63 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Settings")
+        }
+    }
+}
+
+struct DailyScheduleView: View {
+    @Environment(\.managedObjectContext) private var viewContext
+    @State private var assignments: [String: String] = [:]
+
+    private let dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+
+    private func fetchTemplates() -> [NSManagedObject] {
+        let request = NSFetchRequest<NSManagedObject>(entityName: "WorkoutTemplate")
+        request.sortDescriptors = [NSSortDescriptor(key: "name", ascending: true)]
+        return (try? viewContext.fetch(request)) ?? []
+    }
+
+    private func templateName(_ t: NSManagedObject) -> String {
+        t.value(forKey: "name") as? String ?? "Untitled"
+    }
+
+    private func saveAssignments() {
+        UserDefaults.standard.set(assignments, forKey: "dailyScheduleAssignments")
+        // Incrementing this key triggers @AppStorage("dailyScheduleAssignmentsVersion")
+        // in WorkoutTabView to update, which causes todayAssignedTemplate to re-evaluate.
+        let v = UserDefaults.standard.integer(forKey: "dailyScheduleAssignmentsVersion")
+        UserDefaults.standard.set(v + 1, forKey: "dailyScheduleAssignmentsVersion")
+    }
+
+    var body: some View {
+        let templates = fetchTemplates()
+        List {
+            ForEach(1...7, id: \.self) { weekday in
+                let key = String(weekday)
+                Picker(dayNames[weekday - 1], selection: Binding(
+                    get: { assignments[key] ?? "" },
+                    set: { newValue in
+                        if newValue.isEmpty {
+                            assignments.removeValue(forKey: key)
+                        } else {
+                            assignments[key] = newValue
+                        }
+                        saveAssignments()
+                    }
+                )) {
+                    Text("None").tag("")
+                    ForEach(templates, id: \.objectID) { template in
+                        Text(templateName(template))
+                            .tag(template.objectID.uriRepresentation().absoluteString)
+                    }
+                }
+                .pickerStyle(.menu)
+            }
+        }
+        .navigationTitle("Daily Schedule")
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            assignments = UserDefaults.standard.dictionary(forKey: "dailyScheduleAssignments") as? [String: String] ?? [:]
         }
     }
 }

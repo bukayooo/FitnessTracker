@@ -22,6 +22,10 @@ struct HeracleApp: App {
     @Environment(\.scenePhase) var scenePhase
     
     init() {
+        // Toggle workout tab header image on each app launch
+        let current = UserDefaults.standard.integer(forKey: "workoutHeaderImageIndex")
+        UserDefaults.standard.set(current == 0 ? 1 : 0, forKey: "workoutHeaderImageIndex")
+
         // DISABLED: Siri feature requires paid Apple Developer account
         // To re-enable: Uncomment the Intents import and this authorization code
         /*

@@ -99,16 +99,34 @@ struct WorkoutTabView: View {
     @EnvironmentObject var workoutManager: WorkoutManager
     @State private var showingTemplateSelector = false
     @State private var selectedTemplate: IdentifiableManagedObject?
-    
+
     // Add state for blank workout
     @State private var showingBlankWorkout = false
     @State private var blankWorkout: NSManagedObject?
-    
+
     // Track loading state
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var showingError = false
-    
+
+    @AppStorage("workoutHeaderImageIndex") private var headerImageIndex: Int = 0
+    @AppStorage("dailyScheduleEnabled") private var dailyScheduleEnabled = false
+    @AppStorage("dailyScheduleAssignmentsVersion") private var assignmentsVersion = 0
+
+    private var headerImageName: String {
+        headerImageIndex == 0 ? "AchillesHeader" : "DestructionHeader"
+    }
+
+    private var todayAssignedTemplate: NSManagedObject? {
+        let weekday = Calendar.current.component(.weekday, from: Date())
+        let assignments = UserDefaults.standard.dictionary(forKey: "dailyScheduleAssignments") as? [String: String] ?? [:]
+        guard let uriString = assignments[String(weekday)],
+              let uri = URL(string: uriString),
+              let objectID = viewContext.persistentStoreCoordinator?.managedObjectID(forURIRepresentation: uri),
+              let template = try? viewContext.existingObject(with: objectID) else { return nil }
+        return template
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -176,21 +194,43 @@ struct WorkoutTabView: View {
                 }
                 .padding(.horizontal)
                 .padding(.top)
-                
-                if workoutManager.fetchAllTemplates().isEmpty {
+
+                if dailyScheduleEnabled {
+                    // Daily schedule mode — show only today's template.
+                    // .id(assignmentsVersion) forces re-creation whenever
+                    // assignments are saved, ensuring todayAssignedTemplate
+                    // is re-evaluated without needing an app restart.
+                    VStack(alignment: .leading) {
+                        Text("Today's Workout")
+                            .font(.headline)
+                            .padding(.horizontal)
+                        if let template = todayAssignedTemplate {
+                            TemplateCard(template: template)
+                                .padding(.horizontal)
+                                .onTapGesture {
+                                    selectedTemplate = template.asIdentifiable
+                                }
+                        } else {
+                            Text("No workout scheduled for today. Configure in Settings.")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                                .padding(.horizontal)
+                        }
+                    }
+                    .id(assignmentsVersion)
+                } else if workoutManager.fetchAllTemplates().isEmpty {
                     EmptyStateView(
                         systemImage: "dumbbell",
                         title: "No Templates Yet",
                         message: "Create a workout template in the Templates tab to start tracking your workouts."
                     )
                 } else {
-                    // Recent Templates
+                    // Recent Templates grid
                     VStack(alignment: .leading) {
                         Text("Recent Templates")
                             .font(.headline)
                             .padding(.horizontal)
-                        
-                        // Replace horizontal scroll with a 2-column grid
+
                         LazyVGrid(columns: [
                             GridItem(.flexible(), spacing: 16),
                             GridItem(.flexible(), spacing: 16)
@@ -205,14 +245,29 @@ struct WorkoutTabView: View {
                         .padding(.horizontal)
                     }
                 }
-                
+
+                // Alternating image (changes each app launch)
+                // Use Color.clear as layout base so the image's scaled size
+                // doesn't affect frame layout (fixes left-overflow on wide images)
+                Color.clear
+                    .overlay(
+                        Image(headerImageName)
+                            .resizable()
+                            .scaledToFill()
+                    )
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 200)
+                    .clipped()
+                    .cornerRadius(12)
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+
                 Text("\"Sing, O goddess, the anger of Achilles son of Peleus, that brought countless ills upon the Achaeans. Many a brave soul did it send hurrying down to Hades, and many a hero did it yield a prey to dogs and vultures, for so were the counsels of Jove fulfilled from the day on which the son of Atreus, king of men, and great Achilles, first fell out with one another.\"")
                     .font(.footnote)
                     .italic()
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal)
-                    .padding(.top, 8)
                     .padding(.bottom)
             }
             .navigationTitle("Workout")
