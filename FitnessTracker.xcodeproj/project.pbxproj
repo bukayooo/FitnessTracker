@@ -7,8 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		1C0B6F6E2FA397F0005401C1 /* Icon1.icon in Resources */ = {isa = PBXBuildFile; fileRef = 1C0B6F6D2FA397F0005401C1 /* Icon1.icon */; };
 		1C0B6F6C2FA397F0005401C1 /* Icon2.icon in Resources */ = {isa = PBXBuildFile; fileRef = 1C0B6F6B2FA397F0005401C1 /* Icon2.icon */; };
+		1C0B6F6E2FA397F0005401C1 /* Icon1.icon in Resources */ = {isa = PBXBuildFile; fileRef = 1C0B6F6D2FA397F0005401C1 /* Icon1.icon */; };
+		1CA68E842FADD845001858E1 /* Icon3.icon in Resources */ = {isa = PBXBuildFile; fileRef = 1CA68E832FADD845001858E1 /* Icon3.icon */; };
 		AA0001042F0000000000AA01 /* FitnessTrackerWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = AA0001012F0000000000AA01 /* FitnessTrackerWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
@@ -51,11 +52,12 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		1C0B6F6D2FA397F0005401C1 /* Icon1.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = Icon1.icon; sourceTree = "<group>"; };
 		1C0B6F6B2FA397F0005401C1 /* Icon2.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = Icon2.icon; sourceTree = "<group>"; };
+		1C0B6F6D2FA397F0005401C1 /* Icon1.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = Icon1.icon; sourceTree = "<group>"; };
 		1C2148482D6E6A4300CAC896 /* FitnessTracker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FitnessTracker.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		1C2148582D6E6A4500CAC896 /* FitnessTrackerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FitnessTrackerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		1C2148622D6E6A4500CAC896 /* FitnessTrackerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FitnessTrackerUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		1CA68E832FADD845001858E1 /* Icon3.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = Icon3.icon; sourceTree = "<group>"; };
 		AA0001012F0000000000AA01 /* FitnessTrackerWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = FitnessTrackerWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -140,6 +142,7 @@
 		1C21483F2D6E6A4300CAC896 = {
 			isa = PBXGroup;
 			children = (
+				1CA68E832FADD845001858E1 /* Icon3.icon */,
 				1C0B6F6D2FA397F0005401C1 /* Icon1.icon */,
 				1C0B6F6B2FA397F0005401C1 /* Icon2.icon */,
 				1C21484A2D6E6A4300CAC896 /* FitnessTracker */,
@@ -310,6 +313,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				1C0B6F6E2FA397F0005401C1 /* Icon1.icon in Resources */,
+				1CA68E842FADD845001858E1 /* Icon3.icon in Resources */,
 				1C0B6F6C2FA397F0005401C1 /* Icon2.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -509,8 +513,8 @@
 		1C21486D2D6E6A4500CAC896 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = Icon2;
-				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = Icon1;
+				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "Icon2 Icon3";
+				ASSETCATALOG_COMPILER_APPICON_NAME = Icon1;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = FitnessTracker/FitnessTracker.entitlements;
 				CODE_SIGN_STYLE = Automatic;
@@ -542,8 +546,8 @@
 		1C21486E2D6E6A4500CAC896 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = Icon2;
-				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = Icon1;
+				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "Icon2 Icon3";
+				ASSETCATALOG_COMPILER_APPICON_NAME = Icon1;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = FitnessTracker/FitnessTracker.entitlements;
 				CODE_SIGN_STYLE = Automatic;

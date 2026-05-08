@@ -110,7 +110,8 @@ struct SettingsView: View {
 
                 Section {
                     iconRow(label: "Default", iconName: nil)
-                    iconRow(label: "Alternate", iconName: "Icon1")
+                    iconRow(label: "Achilles", iconName: "Icon2")
+                    iconRow(label: "Perseus", iconName: "Icon3")
                 } header: {
                     Text("App Icon")
                 }
