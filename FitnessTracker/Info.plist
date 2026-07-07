@@ -31,6 +31,7 @@
     <key>NSUserActivityTypes</key>
     <array>
         <string>com.spruce.fitnessTracker.startWorkout</string>
+        <string>com.spruce.fitnessTracker.endWorkout</string>
     </array>
     <key>CFBundleURLTypes</key>
     <array>

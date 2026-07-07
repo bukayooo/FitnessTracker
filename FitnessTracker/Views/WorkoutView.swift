@@ -16,6 +16,7 @@ struct WorkoutView: View {
     @State private var showingAddExercise = false
     @State private var showingCancelAlert = false
     @State private var showingCompletionAlert = false
+    @State private var showingCompletedWorkoutDetails = false
     @State private var isEditing = false
     @State private var isTemplateView: Bool
     @State private var editedTemplateName: String = ""
@@ -36,6 +37,7 @@ struct WorkoutView: View {
     @State private var hasLoggedWarmupStart = false
     @State private var hasLoggedWarmupLoading = false
     @AppStorage("siriShortcutsEnabled") private var siriShortcutsEnabled = true
+    @AppStorage("showWorkoutDetailsAfterCompletion") private var showWorkoutDetailsAfterCompletion = false
     
     init(workout: NSManagedObject, workoutManager: WorkoutManager) {
         
@@ -415,11 +417,22 @@ struct WorkoutView: View {
                 Button("Complete", role: .none) {
                     let duration = timerManager.workoutElapsedSeconds
                     workoutManager.completeWorkout(workout, duration: duration)
-                    dismiss()
+                    if showWorkoutDetailsAfterCompletion {
+                        showingCompletedWorkoutDetails = true
+                    } else {
+                        donateEndWorkoutShortcutIfEnabled()
+                        dismiss()
+                    }
                 }
                 Button("Continue Workout", role: .cancel) {}
             } message: {
                 Text("Have you completed all your exercises? The workout will be saved to your history.")
+            }
+            .sheet(isPresented: $showingCompletedWorkoutDetails, onDismiss: {
+                donateEndWorkoutShortcutIfEnabled()
+                dismiss()
+            }) {
+                WorkoutDetailView(workout: workout)
             }
             .onAppear {
                 if !isTemplateView && !isShowingWarmupTimer {
@@ -484,6 +497,13 @@ struct WorkoutView: View {
     
     private func deleteExercise(_ exercise: NSManagedObject) {
         workoutManager.deleteExercise(exercise)
+    }
+
+    private func donateEndWorkoutShortcutIfEnabled() {
+        if siriShortcutsEnabled {
+            SiriShortcutsManager.shared.donateEndWorkoutIntent(templateName: templateName)
+            SiriShortcutsManager.shared.executeEndWorkoutBackgroundShortcut(for: templateName)
+        }
     }
     
     private func loadWarmupsAndStartTimerIfNeeded() {

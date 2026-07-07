@@ -36,6 +36,20 @@ class SiriShortcutsManager: ObservableObject {
         print("DEBUG: 🎤 Successfully donated generic user activity")
     }
     
+    /// Donates an "End Workout" user activity to Siri when a workout is completed
+    func donateEndWorkoutIntent(templateName: String) {
+        let activity = NSUserActivity(activityType: "com.spruce.fitnessTracker.endWorkout")
+        activity.title = "End \(templateName) workout"
+        activity.userInfo = ["templateName": templateName]
+        activity.isEligibleForSearch = true
+        activity.isEligibleForPrediction = true
+        activity.suggestedInvocationPhrase = "End my \(templateName) workout"
+
+        activity.becomeCurrent()
+
+        print("DEBUG: 🎤 Successfully donated end-workout user activity for '\(templateName)' workout")
+    }
+
     // MARK: - UserActivity Handling
     
     /// Handles a "Start Workout" user activity by posting a notification to start the workout
@@ -62,6 +76,11 @@ class SiriShortcutsManager: ObservableObject {
     func executeBackgroundShortcut(for templateName: String) {
         // Execute the shortcut without leaving the app
         executeShortcut(named: "Start Workout", parameters: ["workoutName": templateName])
+    }
+
+    /// Executes a custom "End Workout" shortcut in the background when a workout is completed
+    func executeEndWorkoutBackgroundShortcut(for templateName: String) {
+        executeShortcut(named: "End Workout", parameters: ["workoutName": templateName])
     }
     
     private func executeShortcut(named shortcutName: String, parameters: [String: Any] = [:]) {
