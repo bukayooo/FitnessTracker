@@ -1,0 +1,26 @@
+{
+  "" : {
+    "const-values" : "/Users/bukayoodedele/Documents/FitnessTracker/build/FitnessTracker.build/Release-iphonesimulator/FitnessTrackerWidget.build/Objects-normal/arm64/FitnessTrackerWidget-primary.swiftconstvalues",
+    "dependencies" : "/Users/bukayoodedele/Documents/FitnessTracker/build/FitnessTracker.build/Release-iphonesimulator/FitnessTrackerWidget.build/Objects-normal/arm64/FitnessTrackerWidget-primary.d",
+    "diagnostics" : "/Users/bukayoodedele/Documents/FitnessTracker/build/FitnessTracker.build/Release-iphonesimulator/FitnessTrackerWidget.build/Objects-normal/arm64/FitnessTrackerWidget-primary.dia",
+    "emit-module-dependencies" : "/Users/bukayoodedele/Documents/FitnessTracker/build/FitnessTracker.build/Release-iphonesimulator/FitnessTrackerWidget.build/Objects-normal/arm64/FitnessTrackerWidget-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/bukayoodedele/Documents/FitnessTracker/build/FitnessTracker.build/Release-iphonesimulator/FitnessTrackerWidget.build/Objects-normal/arm64/FitnessTrackerWidget-primary-emit-module.dia",
+    "pch" : "/Users/bukayoodedele/Documents/FitnessTracker/build/FitnessTracker.build/Release-iphonesimulator/FitnessTrackerWidget.build/Objects-normal/arm64/FitnessTrackerWidget-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/bukayoodedele/Documents/FitnessTracker/build/FitnessTracker.build/Release-iphonesimulator/FitnessTrackerWidget.build/Objects-normal/arm64/FitnessTrackerWidget-primary.swiftdeps"
+  },
+  "/Users/bukayoodedele/Documents/FitnessTracker/FitnessTrackerWidget/FitnessTimerActivityAttributes.swift" : {
+    "index-unit-output-path" : "/FitnessTracker.build/Release-iphonesimulator/FitnessTrackerWidget.build/Objects-normal/arm64/FitnessTimerActivityAttributes.o",
+    "llvm-bc" : "/Users/bukayoodedele/Documents/FitnessTracker/build/FitnessTracker.build/Release-iphonesimulator/FitnessTrackerWidget.build/Objects-normal/arm64/FitnessTimerActivityAttributes.bc",
+    "object" : "/Users/bukayoodedele/Documents/FitnessTracker/build/FitnessTracker.build/Release-iphonesimulator/FitnessTrackerWidget.build/Objects-normal/arm64/FitnessTimerActivityAttributes.o"
+  },
+  "/Users/bukayoodedele/Documents/FitnessTracker/FitnessTrackerWidget/FitnessTimerLiveActivity.swift" : {
+    "index-unit-output-path" : "/FitnessTracker.build/Release-iphonesimulator/FitnessTrackerWidget.build/Objects-normal/arm64/FitnessTimerLiveActivity.o",
+    "llvm-bc" : "/Users/bukayoodedele/Documents/FitnessTracker/build/FitnessTracker.build/Release-iphonesimulator/FitnessTrackerWidget.build/Objects-normal/arm64/FitnessTimerLiveActivity.bc",
+    "object" : "/Users/bukayoodedele/Documents/FitnessTracker/build/FitnessTracker.build/Release-iphonesimulator/FitnessTrackerWidget.build/Objects-normal/arm64/FitnessTimerLiveActivity.o"
+  },
+  "/Users/bukayoodedele/Documents/FitnessTracker/FitnessTrackerWidget/FitnessTrackerWidgetBundle.swift" : {
+    "index-unit-output-path" : "/FitnessTracker.build/Release-iphonesimulator/FitnessTrackerWidget.build/Objects-normal/arm64/FitnessTrackerWidgetBundle.o",
+    "llvm-bc" : "/Users/bukayoodedele/Documents/FitnessTracker/build/FitnessTracker.build/Release-iphonesimulator/FitnessTrackerWidget.build/Objects-normal/arm64/FitnessTrackerWidgetBundle.bc",
+    "object" : "/Users/bukayoodedele/Documents/FitnessTracker/build/FitnessTracker.build/Release-iphonesimulator/FitnessTrackerWidget.build/Objects-normal/arm64/FitnessTrackerWidgetBundle.o"
+  }
+}

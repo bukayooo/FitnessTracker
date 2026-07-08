@@ -1,0 +1,12 @@
+{
+  "/Users/bukayoodedele/Documents/FitnessTracker/FitnessTrackerWatch/ContentView.swift" : {
+    "abi-baseline-json" : "/Users/bukayoodedele/Documents/FitnessTracker/build/FitnessTracker.build/Release-watchsimulator/FitnessTrackerWatch.build/Objects-normal/x86_64/FitnessTrackerWatch.abi.json",
+    "const-values" : "/Users/bukayoodedele/Documents/FitnessTracker/build/FitnessTracker.build/Release-watchsimulator/FitnessTrackerWatch.build/Objects-normal/x86_64/FitnessTrackerWatch-primary.swiftconstvalues",
+    "dependencies" : "/Users/bukayoodedele/Documents/FitnessTracker/build/FitnessTracker.build/Release-watchsimulator/FitnessTrackerWatch.build/Objects-normal/x86_64/FitnessTrackerWatch-primary.d",
+    "diagnostics" : "/Users/bukayoodedele/Documents/FitnessTracker/build/FitnessTracker.build/Release-watchsimulator/FitnessTrackerWatch.build/Objects-normal/x86_64/FitnessTrackerWatch-primary.dia",
+    "objc-header" : "/Users/bukayoodedele/Documents/FitnessTracker/build/FitnessTracker.build/Release-watchsimulator/FitnessTrackerWatch.build/Objects-normal/x86_64/FitnessTrackerWatch-Swift.h",
+    "swiftdoc" : "/Users/bukayoodedele/Documents/FitnessTracker/build/FitnessTracker.build/Release-watchsimulator/FitnessTrackerWatch.build/Objects-normal/x86_64/FitnessTrackerWatch.swiftdoc",
+    "swiftmodule" : "/Users/bukayoodedele/Documents/FitnessTracker/build/FitnessTracker.build/Release-watchsimulator/FitnessTrackerWatch.build/Objects-normal/x86_64/FitnessTrackerWatch.swiftmodule",
+    "swiftsourceinfo" : "/Users/bukayoodedele/Documents/FitnessTracker/build/FitnessTracker.build/Release-watchsimulator/FitnessTrackerWatch.build/Objects-normal/x86_64/FitnessTrackerWatch.swiftsourceinfo"
+  }
+}

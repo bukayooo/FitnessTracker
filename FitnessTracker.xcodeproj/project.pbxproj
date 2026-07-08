@@ -12,6 +12,7 @@
 		1CA68E842FADD845001858E1 /* Icon3.icon in Resources */ = {isa = PBXBuildFile; fileRef = 1CA68E832FADD845001858E1 /* Icon3.icon */; };
 		AA0001042F0000000000AA01 /* FitnessTrackerWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = AA0001012F0000000000AA01 /* FitnessTrackerWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		BB0002042F0000000000BB01 /* FitnessTrackerWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = BB0002012F0000000000BB01 /* FitnessTrackerWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		BB0002112F0000000000BB01 /* Icon1.icon in Resources */ = {isa = PBXBuildFile; fileRef = 1C0B6F6D2FA397F0005401C1 /* Icon1.icon */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -335,7 +336,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1620;
-				LastUpgradeCheck = 1620;
+				LastUpgradeCheck = 2660;
 				TargetAttributes = {
 					1C2148472D6E6A4300CAC896 = {
 						CreatedOnToolsVersion = 16.2;
@@ -415,6 +416,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BB0002112F0000000000BB01 /* Icon1.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -540,6 +542,7 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
@@ -596,6 +599,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				VALIDATE_PRODUCT = YES;
 			};
@@ -790,6 +794,7 @@
 		BB00020B2F0000000000BB01 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = Icon1;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = FitnessTrackerWatch/FitnessTrackerWatch.entitlements;
 				CODE_SIGN_STYLE = Automatic;
@@ -800,6 +805,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = Heracle;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Heracle uses HealthKit to start and track your workout session on your Apple Watch.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Heracle uses HealthKit to save your workout data from your Apple Watch.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = Spruce.FitnessTracker;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -820,6 +826,7 @@
 		BB00020C2F0000000000BB01 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = Icon1;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = FitnessTrackerWatch/FitnessTrackerWatch.entitlements;
 				CODE_SIGN_STYLE = Automatic;
@@ -830,6 +837,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = Heracle;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Heracle uses HealthKit to start and track your workout session on your Apple Watch.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Heracle uses HealthKit to save your workout data from your Apple Watch.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = Spruce.FitnessTracker;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

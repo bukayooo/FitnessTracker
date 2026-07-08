@@ -212,7 +212,7 @@ struct WorkoutTabView: View {
                         }
                     }
                     .id(assignmentsVersion)
-                } else if workoutManager.fetchAllTemplates().isEmpty {
+                } else if workoutManager.templates.isEmpty {
                     EmptyStateView(
                         systemImage: "dumbbell",
                         title: "No Templates Yet",
@@ -229,7 +229,7 @@ struct WorkoutTabView: View {
                             GridItem(.flexible(), spacing: 16),
                             GridItem(.flexible(), spacing: 16)
                         ], spacing: 16) {
-                            ForEach(workoutManager.fetchAllTemplates(), id: \.self) { template in
+                            ForEach(workoutManager.templates, id: \.self) { template in
                                 TemplateCard(template: template)
                                     .onTapGesture {
                                         selectedTemplate = template.asIdentifiable
@@ -371,7 +371,7 @@ struct SelectTemplateView: View {
     var body: some View {
         NavigationStack {
             List {
-                ForEach(workoutManager.fetchAllTemplates(), id: \.self) { template in
+                ForEach(workoutManager.templates, id: \.self) { template in
                     TemplateSelectionRow(template: template)
                         .contentShape(Rectangle())
                         .onTapGesture {

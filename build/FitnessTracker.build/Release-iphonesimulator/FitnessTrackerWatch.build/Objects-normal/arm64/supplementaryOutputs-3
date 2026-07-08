@@ -1,0 +1,12 @@
+{
+  "/Users/bukayoodedele/Documents/FitnessTracker/FitnessTrackerWatch/ContentView.swift" : {
+    "abi-baseline-json" : "/Users/bukayoodedele/Documents/FitnessTracker/build/FitnessTracker.build/Release-iphonesimulator/FitnessTrackerWatch.build/Objects-normal/arm64/FitnessTrackerWatch.abi.json",
+    "const-values" : "/Users/bukayoodedele/Documents/FitnessTracker/build/FitnessTracker.build/Release-iphonesimulator/FitnessTrackerWatch.build/Objects-normal/arm64/FitnessTrackerWatch-primary.swiftconstvalues",
+    "dependencies" : "/Users/bukayoodedele/Documents/FitnessTracker/build/FitnessTracker.build/Release-iphonesimulator/FitnessTrackerWatch.build/Objects-normal/arm64/FitnessTrackerWatch-primary.d",
+    "diagnostics" : "/Users/bukayoodedele/Documents/FitnessTracker/build/FitnessTracker.build/Release-iphonesimulator/FitnessTrackerWatch.build/Objects-normal/arm64/FitnessTrackerWatch-primary.dia",
+    "objc-header" : "/Users/bukayoodedele/Documents/FitnessTracker/build/FitnessTracker.build/Release-iphonesimulator/FitnessTrackerWatch.build/Objects-normal/arm64/FitnessTrackerWatch-Swift.h",
+    "swiftdoc" : "/Users/bukayoodedele/Documents/FitnessTracker/build/FitnessTracker.build/Release-iphonesimulator/FitnessTrackerWatch.build/Objects-normal/arm64/FitnessTrackerWatch.swiftdoc",
+    "swiftmodule" : "/Users/bukayoodedele/Documents/FitnessTracker/build/FitnessTracker.build/Release-iphonesimulator/FitnessTrackerWatch.build/Objects-normal/arm64/FitnessTrackerWatch.swiftmodule",
+    "swiftsourceinfo" : "/Users/bukayoodedele/Documents/FitnessTracker/build/FitnessTracker.build/Release-iphonesimulator/FitnessTrackerWatch.build/Objects-normal/arm64/FitnessTrackerWatch.swiftsourceinfo"
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "source": "/Users/bukayoodedele/Documents/FitnessTracker/FitnessTrackerWatch/ContentView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Workout Active",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 15
+        }
+      },
+      {
+        "comment": "",
+        "key": "Waiting for a workout to start from Heracle on your iPhone",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 25
+        }
+      },
+      {
+        "comment": "",
+        "key": "End Workout",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 19
+        }
+      }
+    ]
+  },
+  "version": 1
+}

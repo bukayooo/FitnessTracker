@@ -5,7 +5,14 @@ import WatchKit
 class ExtensionDelegate: NSObject, WKApplicationDelegate {
     func handle(_ workoutConfiguration: HKWorkoutConfiguration) {
         print("DEBUG: ⌚️ Received remote workout configuration: \(workoutConfiguration.activityType.rawValue)")
-        WatchWorkoutManager.shared.startWorkout(configuration: workoutConfiguration)
+        Task {
+            do {
+                try await WatchWorkoutManager.shared.startWorkout(configuration: workoutConfiguration)
+                print("DEBUG: ⌚️ Successfully started workout")
+            } catch {
+                print("DEBUG: ⌚️ Failed to start workout: \(error)")
+            }
+        }
     }
 }
 
