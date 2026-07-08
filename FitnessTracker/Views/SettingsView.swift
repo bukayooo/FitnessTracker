@@ -14,7 +14,6 @@ struct SettingsView: View {
     @AppStorage("siriShortcutsEnabled") private var siriShortcutsEnabled = true
     @AppStorage("timerChimeEnabled") private var timerChimeEnabled = true
     @AppStorage("showWorkoutDetailsAfterCompletion") private var showWorkoutDetailsAfterCompletion = false
-    @AppStorage("watchWorkoutSyncEnabled") private var watchWorkoutSyncEnabled = false
     @AppStorage("dailyScheduleEnabled") private var dailyScheduleEnabled = false
     @State private var currentIconName: String? = UIApplication.shared.alternateIconName
 
@@ -92,16 +91,7 @@ struct SettingsView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Siri Shortcuts")
                                 .font(.body)
-                            Text("Automatically run Siri shortcuts when you start and finish a workout. They must be named \"Start Workout\" and \"End Workout.\"")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                    Toggle(isOn: $showWorkoutDetailsAfterCompletion) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Show Details After Workout")
-                                .font(.body)
-                            Text("Automatically show the details of your workout after you complete it")
+                            Text("Automatically start a Siri shortcut when you start a workout. It must be named \"Start Workout.\"")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }

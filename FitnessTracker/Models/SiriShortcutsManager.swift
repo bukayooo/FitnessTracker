@@ -16,28 +16,63 @@ class SiriShortcutsManager: ObservableObject {
 
     /// Donates a "Start Workout" app intent when a workout is started
     func donateStartWorkoutIntent(templateName: String) {
-        let intent = StartWorkoutIntent(templateName: templateName)
-        Task {
-            do {
-                try await IntentDonationManager.shared.donate(intent: intent)
-                print("DEBUG: 🎤 Donated Start Workout app intent for '\(templateName)'")
-            } catch {
-                print("DEBUG: 🎤 Failed to donate Start Workout app intent: \(error)")
-            }
-        }
+        let activity = NSUserActivity(activityType: "com.spruce.fitnessTracker.startWorkout")
+        activity.title = "Start \(templateName) workout"
+        activity.userInfo = ["templateName": templateName]
+        activity.isEligibleForSearch = true
+        activity.isEligibleForPrediction = true
+        activity.suggestedInvocationPhrase = "Start my \(templateName) workout"
+        
+        activity.becomeCurrent()
+        
+        print("DEBUG: 🎤 Successfully donated user activity for '\(templateName)' workout")
+    }
+    
+    /// Donates a generic "Start Workout" user activity
+    func donateGenericStartWorkoutIntent() {
+        let activity = NSUserActivity(activityType: "com.spruce.fitnessTracker.startWorkout")
+        activity.title = "Start workout"
+        activity.isEligibleForSearch = true
+        activity.isEligibleForPrediction = true
+        activity.suggestedInvocationPhrase = "Start my workout"
+        
+        activity.becomeCurrent()
+        
+        print("DEBUG: 🎤 Successfully donated generic user activity")
+    }
+    
+    /// Donates an "End Workout" user activity to Siri when a workout is completed
+    func donateEndWorkoutIntent(templateName: String) {
+        let activity = NSUserActivity(activityType: "com.spruce.fitnessTracker.endWorkout")
+        activity.title = "End \(templateName) workout"
+        activity.userInfo = ["templateName": templateName]
+        activity.isEligibleForSearch = true
+        activity.isEligibleForPrediction = true
+        activity.suggestedInvocationPhrase = "End my \(templateName) workout"
+
+        activity.becomeCurrent()
+
+        print("DEBUG: 🎤 Successfully donated end-workout user activity for '\(templateName)' workout")
     }
 
-    /// Donates an "End Workout" app intent when a workout is completed
-    func donateEndWorkoutIntent(templateName: String) {
-        let intent = EndWorkoutIntent(templateName: templateName)
-        Task {
-            do {
-                try await IntentDonationManager.shared.donate(intent: intent)
-                print("DEBUG: 🎤 Donated End Workout app intent for '\(templateName)'")
-            } catch {
-                print("DEBUG: 🎤 Failed to donate End Workout app intent: \(error)")
-            }
+    // MARK: - UserActivity Handling
+    
+    /// Handles a "Start Workout" user activity by posting a notification to start the workout
+    func handleStartWorkoutActivity(_ userActivity: NSUserActivity) {
+        guard userActivity.activityType == "com.spruce.fitnessTracker.startWorkout" else { return }
+        
+        let templateName = userActivity.userInfo?["templateName"] as? String ?? "Workout"
+        
+        // Post notification to start the workout
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(
+                name: Notification.Name("SiriStartWorkout"),
+                object: nil,
+                userInfo: ["templateName": templateName]
+            )
         }
+        
+        print("DEBUG: 🎤 Handled user activity for workout: \(templateName)")
     }
 
     // MARK: - Background Execution
@@ -52,10 +87,11 @@ class SiriShortcutsManager: ObservableObject {
         executeShortcut(named: "Start Workout", parameters: ["workoutName": templateName])
     }
 
+    /// Executes a custom "End Workout" shortcut in the background when a workout is completed
     func executeEndWorkoutBackgroundShortcut(for templateName: String) {
         executeShortcut(named: "End Workout", parameters: ["workoutName": templateName])
     }
-
+    
     private func executeShortcut(named shortcutName: String, parameters: [String: Any] = [:]) {
         print("DEBUG: 🎤 Attempting to execute shortcut: \(shortcutName)")
 

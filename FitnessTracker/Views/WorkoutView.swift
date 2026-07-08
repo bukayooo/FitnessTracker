@@ -17,7 +17,6 @@ struct WorkoutView: View {
     @State private var showingCancelAlert = false
     @State private var showingCompletionAlert = false
     @State private var showingCompletedWorkoutDetails = false
-    @State private var showingCardioPicker = false
     @State private var isEditing = false
     @State private var isTemplateView: Bool
     @State private var editedTemplateName: String = ""
@@ -39,7 +38,6 @@ struct WorkoutView: View {
     @State private var hasLoggedWarmupLoading = false
     @AppStorage("siriShortcutsEnabled") private var siriShortcutsEnabled = true
     @AppStorage("showWorkoutDetailsAfterCompletion") private var showWorkoutDetailsAfterCompletion = false
-    @AppStorage("watchWorkoutSyncEnabled") private var watchWorkoutSyncEnabled = false
     
     init(workout: NSManagedObject, workoutManager: WorkoutManager) {
         
@@ -424,7 +422,8 @@ struct WorkoutView: View {
                     if showWorkoutDetailsAfterCompletion {
                         showingCompletedWorkoutDetails = true
                     } else {
-                        handleWorkoutEndSideEffects()
+                        donateEndWorkoutShortcutIfEnabled()
+                        dismiss()
                     }
                 }
                 Button("Continue Workout", role: .cancel) {}
@@ -432,17 +431,10 @@ struct WorkoutView: View {
                 Text("Have you completed all your exercises? The workout will be saved to your history.")
             }
             .sheet(isPresented: $showingCompletedWorkoutDetails, onDismiss: {
-                handleWorkoutEndSideEffects()
+                donateEndWorkoutShortcutIfEnabled()
+                dismiss()
             }) {
                 WorkoutDetailView(workout: workout)
-            }
-            .confirmationDialog("Start a cardio workout on your Watch?", isPresented: $showingCardioPicker) {
-                Button("Run") { startCardioWorkoutAndDismiss(.running) }
-                Button("Bike") { startCardioWorkoutAndDismiss(.cycling) }
-                Button("Elliptical") { startCardioWorkoutAndDismiss(.elliptical) }
-                Button("Row") { startCardioWorkoutAndDismiss(.rowing) }
-                Button("Other") { startCardioWorkoutAndDismiss(.other) }
-                Button("No Thanks", role: .cancel) { dismiss() }
             }
             .onAppear {
                 if !isTemplateView && !isShowingWarmupTimer {
@@ -515,31 +507,7 @@ struct WorkoutView: View {
             SiriShortcutsManager.shared.executeEndWorkoutBackgroundShortcut(for: templateName)
         }
     }
-
-    private func startWatchWorkoutIfEnabled() {
-        if watchWorkoutSyncEnabled {
-            WatchWorkoutManager.shared.startWatchWorkout(activityType: .traditionalStrengthTraining)
-        }
-    }
-
-    /// Called once the main workout is complete (either immediately, or after the post-workout
-    /// details sheet is dismissed): ends the Watch session and offers a cardio follow-up if
-    /// Watch sync is enabled, otherwise just dismisses this view.
-    private func handleWorkoutEndSideEffects() {
-        donateEndWorkoutShortcutIfEnabled()
-        if watchWorkoutSyncEnabled {
-            WatchWorkoutManager.shared.endWatchWorkout()
-            showingCardioPicker = true
-        } else {
-            dismiss()
-        }
-    }
-
-    private func startCardioWorkoutAndDismiss(_ activityType: HKWorkoutActivityType) {
-        WatchWorkoutManager.shared.startWatchWorkout(activityType: activityType)
-        dismiss()
-    }
-
+    
     private func loadWarmupsAndStartTimerIfNeeded() {
         print("DEBUG: ===== WARMUP LOADING CALLED =====")
         if !isTemplateView {
