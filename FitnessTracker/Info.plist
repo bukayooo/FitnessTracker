@@ -16,10 +16,6 @@
     <array>
         <string>UIInterfaceOrientationPortrait</string>
     </array>
-    <key>NSHealthShareUsageDescription</key>
-    <string>We need access to your health data to track your steps.</string>
-    <key>NSHealthUpdateUsageDescription</key>
-    <string>We need to update your health data for tracking.</string>
     <key>NSSupportsLiveActivities</key>
     <true/>
     <key>NSSiriUsageDescription</key>

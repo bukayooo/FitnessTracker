@@ -11,8 +11,6 @@
 		1C0B6F6E2FA397F0005401C1 /* Icon1.icon in Resources */ = {isa = PBXBuildFile; fileRef = 1C0B6F6D2FA397F0005401C1 /* Icon1.icon */; };
 		1CA68E842FADD845001858E1 /* Icon3.icon in Resources */ = {isa = PBXBuildFile; fileRef = 1CA68E832FADD845001858E1 /* Icon3.icon */; };
 		AA0001042F0000000000AA01 /* FitnessTrackerWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = AA0001012F0000000000AA01 /* FitnessTrackerWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		BB0002042F0000000000BB01 /* FitnessTrackerWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = BB0002012F0000000000BB01 /* FitnessTrackerWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		BB0002112F0000000000BB01 /* Icon1.icon in Resources */ = {isa = PBXBuildFile; fileRef = 1C0B6F6D2FA397F0005401C1 /* Icon1.icon */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -37,13 +35,6 @@
 			remoteGlobalIDString = AA0001092F0000000000AA01;
 			remoteInfo = FitnessTrackerWidget;
 		};
-		BB00020D2F0000000000BB01 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 1C2148402D6E6A4300CAC896 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = BB0002092F0000000000BB01;
-			remoteInfo = FitnessTrackerWatch;
-		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -58,17 +49,6 @@
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		BB0002052F0000000000BB01 /* Embed Watch Content */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
-			dstSubfolderSpec = 16;
-			files = (
-				BB0002042F0000000000BB01 /* FitnessTrackerWatch.app in Embed Watch Content */,
-			);
-			name = "Embed Watch Content";
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
@@ -79,7 +59,6 @@
 		1C2148622D6E6A4500CAC896 /* FitnessTrackerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FitnessTrackerUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		1CA68E832FADD845001858E1 /* Icon3.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = Icon3.icon; sourceTree = "<group>"; };
 		AA0001012F0000000000AA01 /* FitnessTrackerWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = FitnessTrackerWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
-		BB0002012F0000000000BB01 /* FitnessTrackerWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FitnessTrackerWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -96,13 +75,6 @@
 				Info.plist,
 			);
 			target = AA0001092F0000000000AA01 /* FitnessTrackerWidget */;
-		};
-		BB0002032F0000000000BB01 /* Exceptions for "FitnessTrackerWatch" folder in "FitnessTrackerWatch" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Info.plist,
-			);
-			target = BB0002092F0000000000BB01 /* FitnessTrackerWatch */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -131,14 +103,6 @@
 				AA0001032F0000000000AA01 /* Exceptions for "FitnessTrackerWidget" folder in "FitnessTrackerWidget" target */,
 			);
 			path = FitnessTrackerWidget;
-			sourceTree = "<group>";
-		};
-		BB0002022F0000000000BB01 /* FitnessTrackerWatch */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				BB0002032F0000000000BB01 /* Exceptions for "FitnessTrackerWatch" folder in "FitnessTrackerWatch" target */,
-			);
-			path = FitnessTrackerWatch;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -172,13 +136,6 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		BB0002062F0000000000BB01 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -192,7 +149,6 @@
 				1C21485B2D6E6A4500CAC896 /* FitnessTrackerTests */,
 				1C2148652D6E6A4500CAC896 /* FitnessTrackerUITests */,
 				AA0001022F0000000000AA01 /* FitnessTrackerWidget */,
-				BB0002022F0000000000BB01 /* FitnessTrackerWatch */,
 				1C2148492D6E6A4300CAC896 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -204,7 +160,6 @@
 				1C2148582D6E6A4500CAC896 /* FitnessTrackerTests.xctest */,
 				1C2148622D6E6A4500CAC896 /* FitnessTrackerUITests.xctest */,
 				AA0001012F0000000000AA01 /* FitnessTrackerWidget.appex */,
-				BB0002012F0000000000BB01 /* FitnessTrackerWatch.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -220,13 +175,11 @@
 				1C2148452D6E6A4300CAC896 /* Frameworks */,
 				1C2148462D6E6A4300CAC896 /* Resources */,
 				AA0001052F0000000000AA01 /* Embed Foundation Extensions */,
-				BB0002052F0000000000BB01 /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				AA00010E2F0000000000AA01 /* PBXTargetDependency */,
-				BB00020E2F0000000000BB01 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				1C21484A2D6E6A4300CAC896 /* FitnessTracker */,
@@ -306,28 +259,6 @@
 			productReference = AA0001012F0000000000AA01 /* FitnessTrackerWidget.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
-		BB0002092F0000000000BB01 /* FitnessTrackerWatch */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = BB00020A2F0000000000BB01 /* Build configuration list for PBXNativeTarget "FitnessTrackerWatch" */;
-			buildPhases = (
-				BB0002072F0000000000BB01 /* Sources */,
-				BB0002062F0000000000BB01 /* Frameworks */,
-				BB0002082F0000000000BB01 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				BB0002022F0000000000BB01 /* FitnessTrackerWatch */,
-			);
-			name = FitnessTrackerWatch;
-			packageProductDependencies = (
-			);
-			productName = FitnessTrackerWatch;
-			productReference = BB0002012F0000000000BB01 /* FitnessTrackerWatch.app */;
-			productType = "com.apple.product-type.application";
-		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -352,9 +283,6 @@
 					AA0001092F0000000000AA01 = {
 						CreatedOnToolsVersion = 16.2;
 					};
-					BB0002092F0000000000BB01 = {
-						CreatedOnToolsVersion = 16.2;
-					};
 				};
 			};
 			buildConfigurationList = 1C2148432D6E6A4300CAC896 /* Build configuration list for PBXProject "FitnessTracker" */;
@@ -375,7 +303,6 @@
 				1C2148572D6E6A4500CAC896 /* FitnessTrackerTests */,
 				1C2148612D6E6A4500CAC896 /* FitnessTrackerUITests */,
 				AA0001092F0000000000AA01 /* FitnessTrackerWidget */,
-				BB0002092F0000000000BB01 /* FitnessTrackerWatch */,
 			);
 		};
 /* End PBXProject section */
@@ -412,14 +339,6 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		BB0002082F0000000000BB01 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				BB0002112F0000000000BB01 /* Icon1.icon in Resources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -451,13 +370,6 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		BB0002072F0000000000BB01 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -475,11 +387,6 @@
 			isa = PBXTargetDependency;
 			target = AA0001092F0000000000AA01 /* FitnessTrackerWidget */;
 			targetProxy = AA00010D2F0000000000AA01 /* PBXContainerItemProxy */;
-		};
-		BB00020E2F0000000000BB01 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = BB0002092F0000000000BB01 /* FitnessTrackerWatch */;
-			targetProxy = BB00020D2F0000000000BB01 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -791,70 +698,6 @@
 			};
 			name = Release;
 		};
-		BB00020B2F0000000000BB01 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = Icon1;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = FitnessTrackerWatch/FitnessTrackerWatch.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 9YYZ7P7Y9Q;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = FitnessTrackerWatch/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Heracle;
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "Heracle uses HealthKit to start and track your workout session on your Apple Watch.";
-				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Heracle uses HealthKit to save your workout data from your Apple Watch.";
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
-				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = Spruce.FitnessTracker;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = Spruce.FitnessTracker.FitnessTrackerWatch;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = watchos;
-				SKIP_INSTALL = YES;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 4;
-				WATCHOS_DEPLOYMENT_TARGET = 11.2;
-			};
-			name = Debug;
-		};
-		BB00020C2F0000000000BB01 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = Icon1;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = FitnessTrackerWatch/FitnessTrackerWatch.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 9YYZ7P7Y9Q;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = FitnessTrackerWatch/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Heracle;
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "Heracle uses HealthKit to start and track your workout session on your Apple Watch.";
-				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Heracle uses HealthKit to save your workout data from your Apple Watch.";
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
-				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = Spruce.FitnessTracker;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = Spruce.FitnessTracker.FitnessTrackerWatch;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = watchos;
-				SKIP_INSTALL = YES;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 4;
-				WATCHOS_DEPLOYMENT_TARGET = 11.2;
-			};
-			name = Release;
-		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -899,15 +742,6 @@
 			buildConfigurations = (
 				AA00010B2F0000000000AA01 /* Debug */,
 				AA00010C2F0000000000AA01 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		BB00020A2F0000000000BB01 /* Build configuration list for PBXNativeTarget "FitnessTrackerWatch" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				BB00020B2F0000000000BB01 /* Debug */,
-				BB00020C2F0000000000BB01 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

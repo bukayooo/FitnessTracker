@@ -1,7 +1,6 @@
 import SwiftUI
 import CoreData
 import Combine
-import HealthKit
 
 struct WorkoutView: View {
     @Environment(\.dismiss) private var dismiss
@@ -262,10 +261,8 @@ struct WorkoutView: View {
                 warmupsLoaded = true
 
                 if siriShortcutsEnabled && !isTemplateView {
-                    SiriShortcutsManager.shared.donateStartWorkoutIntent(templateName: templateName)
                     SiriShortcutsManager.shared.executeBackgroundShortcut(for: templateName)
                 }
-                startWatchWorkoutIfEnabled()
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("StartWorkoutFromTemplate"))) { notification in
@@ -277,13 +274,9 @@ struct WorkoutView: View {
             print("DEBUG: 🎤 StartWorkoutFromTemplate - isTemplateView: \(isTemplateView), templateName: '\(templateName)'")
 
             if siriShortcutsEnabled && !isTemplateView {
-                SiriShortcutsManager.shared.donateStartWorkoutIntent(templateName: templateName)
                 SiriShortcutsManager.shared.executeBackgroundShortcut(for: templateName)
             }
-            if !isTemplateView {
-                startWatchWorkoutIfEnabled()
-            }
-
+            
             if !isTemplateView && !warmupsLoaded {
                 if !hasLoggedNotification {
                     print("DEBUG: 🎯 About to call loadWarmupsAndStartTimerIfNeeded from notification")
@@ -503,7 +496,6 @@ struct WorkoutView: View {
 
     private func donateEndWorkoutShortcutIfEnabled() {
         if siriShortcutsEnabled {
-            SiriShortcutsManager.shared.donateEndWorkoutIntent(templateName: templateName)
             SiriShortcutsManager.shared.executeEndWorkoutBackgroundShortcut(for: templateName)
         }
     }
