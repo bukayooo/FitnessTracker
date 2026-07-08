@@ -7,12 +7,14 @@
 
 import SwiftUI
 import CoreData
+import Intents
 
 struct ContentView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @StateObject var workoutManager: WorkoutManager
     @State private var selectedTab = 0  // Start with Templates tab to avoid interference
-
+    @AppStorage("siriShortcutsEnabled") private var siriShortcutsEnabled = true
+    
     init() {
         // Initialize WorkoutManager with the injected context
         let context = PersistenceController.shared.container.viewContext
@@ -56,6 +58,10 @@ struct ContentView: View {
             // This delay allows everything to be properly initialized first
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 selectedTab = 1 // Switch to Workout tab
+            }
+
+            if siriShortcutsEnabled {
+                SiriShortcutsManager.shared.donateGenericStartWorkoutIntent()
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("SiriStartWorkout"))) { notification in
@@ -212,7 +218,7 @@ struct WorkoutTabView: View {
                         }
                     }
                     .id(assignmentsVersion)
-                } else if workoutManager.templates.isEmpty {
+                } else if workoutManager.fetchAllTemplates().isEmpty {
                     EmptyStateView(
                         systemImage: "dumbbell",
                         title: "No Templates Yet",
@@ -229,7 +235,7 @@ struct WorkoutTabView: View {
                             GridItem(.flexible(), spacing: 16),
                             GridItem(.flexible(), spacing: 16)
                         ], spacing: 16) {
-                            ForEach(workoutManager.templates, id: \.self) { template in
+                            ForEach(workoutManager.fetchAllTemplates(), id: \.self) { template in
                                 TemplateCard(template: template)
                                     .onTapGesture {
                                         selectedTemplate = template.asIdentifiable
@@ -371,7 +377,7 @@ struct SelectTemplateView: View {
     var body: some View {
         NavigationStack {
             List {
-                ForEach(workoutManager.templates, id: \.self) { template in
+                ForEach(workoutManager.fetchAllTemplates(), id: \.self) { template in
                     TemplateSelectionRow(template: template)
                         .contentShape(Rectangle())
                         .onTapGesture {

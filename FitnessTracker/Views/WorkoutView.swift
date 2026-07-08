@@ -1,6 +1,7 @@
 import SwiftUI
 import CoreData
 import Combine
+import Intents
 
 struct WorkoutView: View {
     @Environment(\.dismiss) private var dismiss
@@ -261,7 +262,9 @@ struct WorkoutView: View {
                 warmupsLoaded = true
 
                 if siriShortcutsEnabled && !isTemplateView {
-                    SiriShortcutsManager.shared.executeBackgroundShortcut(for: templateName)
+                    let workoutName = templateName
+                    SiriShortcutsManager.shared.donateStartWorkoutIntent(templateName: workoutName)
+                    SiriShortcutsManager.shared.executeBackgroundShortcut(for: workoutName)
                 }
             }
         }
@@ -274,7 +277,9 @@ struct WorkoutView: View {
             print("DEBUG: 🎤 StartWorkoutFromTemplate - isTemplateView: \(isTemplateView), templateName: '\(templateName)'")
 
             if siriShortcutsEnabled && !isTemplateView {
-                SiriShortcutsManager.shared.executeBackgroundShortcut(for: templateName)
+                let workoutName = templateName
+                SiriShortcutsManager.shared.donateStartWorkoutIntent(templateName: workoutName)
+                SiriShortcutsManager.shared.executeBackgroundShortcut(for: workoutName)
             }
             
             if !isTemplateView && !warmupsLoaded {
@@ -496,6 +501,7 @@ struct WorkoutView: View {
 
     private func donateEndWorkoutShortcutIfEnabled() {
         if siriShortcutsEnabled {
+            SiriShortcutsManager.shared.donateEndWorkoutIntent(templateName: templateName)
             SiriShortcutsManager.shared.executeEndWorkoutBackgroundShortcut(for: templateName)
         }
     }

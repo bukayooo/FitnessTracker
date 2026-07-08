@@ -91,7 +91,16 @@ struct SettingsView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Siri Shortcuts")
                                 .font(.body)
-                            Text("Automatically start a Siri shortcut when you start a workout. It must be named \"Start Workout.\"")
+                            Text("Automatically run Siri shortcuts when you start and finish a workout. They must be named \"Start Workout\" and \"End Workout.\"")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    Toggle(isOn: $showWorkoutDetailsAfterCompletion) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Show Details After Workout")
+                                .font(.body)
+                            Text("Automatically show the details of your workout after you complete it")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
@@ -107,7 +116,7 @@ struct SettingsView: View {
                     }
                 } header: {
                     Text("Workout")
-                }
+                } 
 
                 Section {
                     iconRow(label: "Default", iconName: nil)

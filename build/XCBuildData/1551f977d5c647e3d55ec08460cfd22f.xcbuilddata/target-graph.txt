@@ -1,6 +1,0 @@
-Target dependency graph (3 targets)
-Target 'FitnessTracker' in project 'FitnessTracker'
-➜ Explicit dependency on target 'FitnessTrackerWidget' in project 'FitnessTracker'
-➜ Explicit dependency on target 'FitnessTrackerWatch' in project 'FitnessTracker'
-Target 'FitnessTrackerWatch' in project 'FitnessTracker' (no dependencies)
-Target 'FitnessTrackerWidget' in project 'FitnessTracker' (no dependencies)
