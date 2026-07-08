@@ -28,11 +28,6 @@
     <true/>
     <key>NSSiriUsageDescription</key>
     <string>This app integrates with Siri to quickly start your workouts using voice commands.</string>
-    <key>NSUserActivityTypes</key>
-    <array>
-        <string>com.spruce.fitnessTracker.startWorkout</string>
-        <string>com.spruce.fitnessTracker.endWorkout</string>
-    </array>
     <key>CFBundleURLTypes</key>
     <array>
         <dict>

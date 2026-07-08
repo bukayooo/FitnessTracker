@@ -7,14 +7,12 @@
 
 import SwiftUI
 import CoreData
-import Intents
 
 struct ContentView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @StateObject var workoutManager: WorkoutManager
     @State private var selectedTab = 0  // Start with Templates tab to avoid interference
-    @AppStorage("siriShortcutsEnabled") private var siriShortcutsEnabled = true
-    
+
     init() {
         // Initialize WorkoutManager with the injected context
         let context = PersistenceController.shared.container.viewContext
@@ -58,10 +56,6 @@ struct ContentView: View {
             // This delay allows everything to be properly initialized first
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 selectedTab = 1 // Switch to Workout tab
-            }
-
-            if siriShortcutsEnabled {
-                SiriShortcutsManager.shared.donateGenericStartWorkoutIntent()
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("SiriStartWorkout"))) { notification in

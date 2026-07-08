@@ -14,6 +14,7 @@ struct SettingsView: View {
     @AppStorage("siriShortcutsEnabled") private var siriShortcutsEnabled = true
     @AppStorage("timerChimeEnabled") private var timerChimeEnabled = true
     @AppStorage("showWorkoutDetailsAfterCompletion") private var showWorkoutDetailsAfterCompletion = false
+    @AppStorage("watchWorkoutSyncEnabled") private var watchWorkoutSyncEnabled = false
     @AppStorage("dailyScheduleEnabled") private var dailyScheduleEnabled = false
     @State private var currentIconName: String? = UIApplication.shared.alternateIconName
 
@@ -114,9 +115,18 @@ struct SettingsView: View {
                                 .foregroundColor(.secondary)
                         }
                     }
+                    Toggle(isOn: $watchWorkoutSyncEnabled) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Sync with Apple Watch")
+                                .font(.body)
+                            Text("Automatically start a Traditional Strength Training session on your paired Apple Watch when you start a workout, and end it when you finish")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
                 } header: {
                     Text("Workout")
-                } 
+                }
 
                 Section {
                     iconRow(label: "Default", iconName: nil)

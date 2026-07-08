@@ -1,7 +1,7 @@
 import SwiftUI
 import CoreData
 import Combine
-import Intents
+import HealthKit
 
 struct WorkoutView: View {
     @Environment(\.dismiss) private var dismiss
@@ -17,6 +17,7 @@ struct WorkoutView: View {
     @State private var showingCancelAlert = false
     @State private var showingCompletionAlert = false
     @State private var showingCompletedWorkoutDetails = false
+    @State private var showingCardioPicker = false
     @State private var isEditing = false
     @State private var isTemplateView: Bool
     @State private var editedTemplateName: String = ""
@@ -38,6 +39,7 @@ struct WorkoutView: View {
     @State private var hasLoggedWarmupLoading = false
     @AppStorage("siriShortcutsEnabled") private var siriShortcutsEnabled = true
     @AppStorage("showWorkoutDetailsAfterCompletion") private var showWorkoutDetailsAfterCompletion = false
+    @AppStorage("watchWorkoutSyncEnabled") private var watchWorkoutSyncEnabled = false
     
     init(workout: NSManagedObject, workoutManager: WorkoutManager) {
         
@@ -262,10 +264,10 @@ struct WorkoutView: View {
                 warmupsLoaded = true
 
                 if siriShortcutsEnabled && !isTemplateView {
-                    let workoutName = templateName
-                    SiriShortcutsManager.shared.donateStartWorkoutIntent(templateName: workoutName)
-                    SiriShortcutsManager.shared.executeBackgroundShortcut(for: workoutName)
+                    SiriShortcutsManager.shared.donateStartWorkoutIntent(templateName: templateName)
+                    SiriShortcutsManager.shared.executeBackgroundShortcut(for: templateName)
                 }
+                startWatchWorkoutIfEnabled()
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("StartWorkoutFromTemplate"))) { notification in
@@ -277,11 +279,13 @@ struct WorkoutView: View {
             print("DEBUG: 🎤 StartWorkoutFromTemplate - isTemplateView: \(isTemplateView), templateName: '\(templateName)'")
 
             if siriShortcutsEnabled && !isTemplateView {
-                let workoutName = templateName
-                SiriShortcutsManager.shared.donateStartWorkoutIntent(templateName: workoutName)
-                SiriShortcutsManager.shared.executeBackgroundShortcut(for: workoutName)
+                SiriShortcutsManager.shared.donateStartWorkoutIntent(templateName: templateName)
+                SiriShortcutsManager.shared.executeBackgroundShortcut(for: templateName)
             }
-            
+            if !isTemplateView {
+                startWatchWorkoutIfEnabled()
+            }
+
             if !isTemplateView && !warmupsLoaded {
                 if !hasLoggedNotification {
                     print("DEBUG: 🎯 About to call loadWarmupsAndStartTimerIfNeeded from notification")
@@ -420,8 +424,7 @@ struct WorkoutView: View {
                     if showWorkoutDetailsAfterCompletion {
                         showingCompletedWorkoutDetails = true
                     } else {
-                        donateEndWorkoutShortcutIfEnabled()
-                        dismiss()
+                        handleWorkoutEndSideEffects()
                     }
                 }
                 Button("Continue Workout", role: .cancel) {}
@@ -429,10 +432,17 @@ struct WorkoutView: View {
                 Text("Have you completed all your exercises? The workout will be saved to your history.")
             }
             .sheet(isPresented: $showingCompletedWorkoutDetails, onDismiss: {
-                donateEndWorkoutShortcutIfEnabled()
-                dismiss()
+                handleWorkoutEndSideEffects()
             }) {
                 WorkoutDetailView(workout: workout)
+            }
+            .confirmationDialog("Start a cardio workout on your Watch?", isPresented: $showingCardioPicker) {
+                Button("Run") { startCardioWorkoutAndDismiss(.running) }
+                Button("Bike") { startCardioWorkoutAndDismiss(.cycling) }
+                Button("Elliptical") { startCardioWorkoutAndDismiss(.elliptical) }
+                Button("Row") { startCardioWorkoutAndDismiss(.rowing) }
+                Button("Other") { startCardioWorkoutAndDismiss(.other) }
+                Button("No Thanks", role: .cancel) { dismiss() }
             }
             .onAppear {
                 if !isTemplateView && !isShowingWarmupTimer {
@@ -505,7 +515,31 @@ struct WorkoutView: View {
             SiriShortcutsManager.shared.executeEndWorkoutBackgroundShortcut(for: templateName)
         }
     }
-    
+
+    private func startWatchWorkoutIfEnabled() {
+        if watchWorkoutSyncEnabled {
+            WatchWorkoutManager.shared.startWatchWorkout(activityType: .traditionalStrengthTraining)
+        }
+    }
+
+    /// Called once the main workout is complete (either immediately, or after the post-workout
+    /// details sheet is dismissed): ends the Watch session and offers a cardio follow-up if
+    /// Watch sync is enabled, otherwise just dismisses this view.
+    private func handleWorkoutEndSideEffects() {
+        donateEndWorkoutShortcutIfEnabled()
+        if watchWorkoutSyncEnabled {
+            WatchWorkoutManager.shared.endWatchWorkout()
+            showingCardioPicker = true
+        } else {
+            dismiss()
+        }
+    }
+
+    private func startCardioWorkoutAndDismiss(_ activityType: HKWorkoutActivityType) {
+        WatchWorkoutManager.shared.startWatchWorkout(activityType: activityType)
+        dismiss()
+    }
+
     private func loadWarmupsAndStartTimerIfNeeded() {
         print("DEBUG: ===== WARMUP LOADING CALLED =====")
         if !isTemplateView {

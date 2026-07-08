@@ -686,34 +686,26 @@ struct TemplateDetailView: View {
                     Section {
                         Button {
                             print("DEBUG: Starting workout from template: \(templateName)")
-                            let loadingAlert = UIAlertController(title: "Starting Workout", message: "Please wait...", preferredStyle: .alert)
-                            let windowScene = UIApplication.shared.connectedScenes.first(where: { $0 is UIWindowScene }) as? UIWindowScene
-                            let window = windowScene?.windows.first { $0.isKeyWindow }
-                            window?.rootViewController?.present(loadingAlert, animated: true)
-                            
-                            DispatchQueue.global(qos: .userInitiated).async {
-                                if let workout = workoutManager.startWorkout(from: template) {
-                                    print("DEBUG: Created new workout with ID: \(workout.objectID)")
-                                    DispatchQueue.main.async {
-                                        loadingAlert.dismiss(animated: true)
-                                        dismiss()
-                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                            NotificationCenter.default.post(
-                                                name: Notification.Name("StartWorkoutFromTemplate"),
-                                                object: nil,
-                                                userInfo: ["workout": workout]
-                                            )
-                                            print("DEBUG: Posted notification to start workout")
-                                        }
-                                    }
-                                } else {
-                                    DispatchQueue.main.async {
-                                        loadingAlert.dismiss(animated: true)
-                                        let errorAlert = UIAlertController(title: "Error", message: "Failed to create workout from template", preferredStyle: .alert)
-                                        errorAlert.addAction(UIAlertAction(title: "OK", style: .default))
-                                        window?.rootViewController?.present(errorAlert, animated: true)
-                                    }
+                            // Core Data's viewContext is confined to the main thread - startWorkout
+                            // must run here, not on a background queue, or it races with any other
+                            // view (e.g. the templates list) touching the same context concurrently.
+                            if let workout = workoutManager.startWorkout(from: template) {
+                                print("DEBUG: Created new workout with ID: \(workout.objectID)")
+                                dismiss()
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                    NotificationCenter.default.post(
+                                        name: Notification.Name("StartWorkoutFromTemplate"),
+                                        object: nil,
+                                        userInfo: ["workout": workout]
+                                    )
+                                    print("DEBUG: Posted notification to start workout")
                                 }
+                            } else {
+                                let windowScene = UIApplication.shared.connectedScenes.first(where: { $0 is UIWindowScene }) as? UIWindowScene
+                                let window = windowScene?.windows.first { $0.isKeyWindow }
+                                let errorAlert = UIAlertController(title: "Error", message: "Failed to create workout from template", preferredStyle: .alert)
+                                errorAlert.addAction(UIAlertAction(title: "OK", style: .default))
+                                window?.rootViewController?.present(errorAlert, animated: true)
                             }
                         } label: {
                             HStack {

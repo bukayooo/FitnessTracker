@@ -7,8 +7,6 @@
 
 import SwiftUI
 import CoreData
-// DISABLED: Requires paid Apple Developer account
-// import Intents
 
 // Create a notification name for scene phase changes
 extension Notification.Name {
@@ -25,15 +23,6 @@ struct HeracleApp: App {
         // Toggle workout tab header image on each app launch
         let current = UserDefaults.standard.integer(forKey: "workoutHeaderImageIndex")
         UserDefaults.standard.set(current == 0 ? 1 : 0, forKey: "workoutHeaderImageIndex")
-
-        // DISABLED: Siri feature requires paid Apple Developer account
-        // To re-enable: Uncomment the Intents import and this authorization code
-        /*
-        // Set up Siri authorization for user activities
-        INPreferences.requestSiriAuthorization { status in
-            print("DEBUG: 🎤 Siri authorization status: \(status)")
-        }
-        */
     }
     
     var body: some Scene {
@@ -41,16 +30,6 @@ struct HeracleApp: App {
             ContentView()
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
                 .tint(.fitnessPrimary)
-                .onOpenURL { url in
-                    // Handle return from Shortcuts app
-                    if url.scheme == Bundle.main.bundleIdentifier {
-                        print("DEBUG: 🎤 Returned from Shortcuts execution")
-                    }
-                }
-                .onContinueUserActivity("com.spruce.fitnessTracker.startWorkout") { userActivity in
-                    print("DEBUG: 🎤 Received user activity: \(userActivity.activityType)")
-                    SiriShortcutsManager.shared.handleStartWorkoutActivity(userActivity)
-                }
         }
         .onChange(of: scenePhase) { oldPhase, newPhase in
             // Broadcast app state change so any active TimerManager instances can respond
