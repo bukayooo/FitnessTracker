@@ -10,7 +10,13 @@ struct WorkoutView: View {
     @EnvironmentObject var session: ActiveWorkoutSession
 
     @ObservedObject var workoutManager: WorkoutManager
-    @ObservedObject var timerManager: TimerManager
+    // Not @ObservedObject: WorkoutView reads timerManager only inside discrete
+    // action closures (onAppear/onReceive/button taps), never for continuous
+    // display. Observing it here would re-evaluate the entire body — including
+    // re-sorting and reconstructing every ExerciseCard — on every 1s timer tick.
+    // Live display of timer state is isolated in WorkoutTimerHeaderView below,
+    // which owns its own @ObservedObject subscription.
+    let timerManager: TimerManager
 
     let workout: NSManagedObject
 
@@ -43,7 +49,7 @@ struct WorkoutView: View {
 
         self.workout = workout
         self._workoutManager = ObservedObject(wrappedValue: workoutManager)
-        self._timerManager = ObservedObject(wrappedValue: timerManager)
+        self.timerManager = timerManager
 
         let isTemplate = workout.entity.name == "WorkoutTemplate"
         self._isTemplateView = State(initialValue: isTemplate)
@@ -130,40 +136,7 @@ struct WorkoutView: View {
     @ViewBuilder
     private func timerHeader() -> some View {
         if !isTemplateView {
-            VStack(spacing: 8) {
-                Text("\(timerManager.formattedWorkoutTime)")
-                    .font(.system(size: 56, weight: .bold, design: .monospaced))
-                    .foregroundColor(.primary)
-                
-                HStack(spacing: 16) {
-                    Button {
-                        let _ = timerManager.stopWorkoutTimer()
-                        timerManager.startWorkoutTimer()
-                    } label: {
-                        Image(systemName: "arrow.counterclockwise")
-                            .font(.title2)
-                    }
-                    .disabled(timerManager.workoutElapsedSeconds == 0)
-                    
-                    Button {
-                        if timerManager.isWorkoutTimerActive {
-                            timerManager.pauseWorkoutTimer()
-                        } else {
-                            if timerManager.workoutElapsedSeconds == 0 {
-                                timerManager.startWorkoutTimer()
-                            } else {
-                                timerManager.resumeWorkoutTimer()
-                            }
-                        }
-                    } label: {
-                        Image(systemName: timerManager.isWorkoutTimerActive ? "pause.fill" : "play.fill")
-                            .font(.title2)
-                    }
-                }
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 20)
-            .background(Color(.systemGroupedBackground))
+            WorkoutTimerHeaderView(timerManager: timerManager)
         }
     }
     
@@ -628,6 +601,51 @@ struct WorkoutView: View {
                 userInfo: ["workout": newWorkout as Any]
             )
         }
+    }
+}
+
+// MARK: - Workout Timer Header
+
+/// Isolated so only this small view re-renders on the timer's 1s tick,
+/// instead of the whole WorkoutView (exercise list, sorting, etc).
+private struct WorkoutTimerHeaderView: View {
+    @ObservedObject var timerManager: TimerManager
+
+    var body: some View {
+        VStack(spacing: 8) {
+            Text("\(timerManager.formattedWorkoutTime)")
+                .font(.system(size: 56, weight: .bold, design: .monospaced))
+                .foregroundColor(.primary)
+
+            HStack(spacing: 16) {
+                Button {
+                    let _ = timerManager.stopWorkoutTimer()
+                    timerManager.startWorkoutTimer()
+                } label: {
+                    Image(systemName: "arrow.counterclockwise")
+                        .font(.title2)
+                }
+                .disabled(timerManager.workoutElapsedSeconds == 0)
+
+                Button {
+                    if timerManager.isWorkoutTimerActive {
+                        timerManager.pauseWorkoutTimer()
+                    } else {
+                        if timerManager.workoutElapsedSeconds == 0 {
+                            timerManager.startWorkoutTimer()
+                        } else {
+                            timerManager.resumeWorkoutTimer()
+                        }
+                    }
+                } label: {
+                    Image(systemName: timerManager.isWorkoutTimerActive ? "pause.fill" : "play.fill")
+                        .font(.title2)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 20)
+        .background(Color(.systemGroupedBackground))
     }
 }
 

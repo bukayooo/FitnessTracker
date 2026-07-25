@@ -725,30 +725,41 @@ class TimerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
             stepIndex: 1,
             totalSteps: 1
         )
-        do {
-            restTimerActivity = try Activity<FitnessTimerAttributes>.request(
-                attributes: attributes,
-                content: .init(state: state, staleDate: endTime.addingTimeInterval(5))
-            )
-            print("DEBUG: 🟢 Rest timer Live Activity started")
-        } catch {
-            print("DEBUG: 🔴 Failed to start rest timer Live Activity: \(error)")
+
+        // Capture and clear any existing handle synchronously so a fast
+        // stop-then-start (e.g. restarting the rest timer) can't race: the old
+        // fire-and-forget end() Task used to read `restTimerActivity` lazily,
+        // which by the time it ran could already be pointing at the *new*
+        // activity created below — ending it moments after it appeared, which
+        // is why the Live Activity would sometimes never show on lock screen.
+        let existing = restTimerActivity
+        restTimerActivity = nil
+
+        Task {
+            await existing?.end(nil, dismissalPolicy: .immediate)
+            do {
+                self.restTimerActivity = try Activity<FitnessTimerAttributes>.request(
+                    attributes: attributes,
+                    content: .init(state: state, staleDate: endTime.addingTimeInterval(5))
+                )
+                print("DEBUG: 🟢 Rest timer Live Activity started")
+            } catch {
+                print("DEBUG: 🔴 Failed to start rest timer Live Activity: \(error)")
+            }
         }
     }
 
     private func endRestTimerLiveActivity() {
+        let existing = restTimerActivity
+        restTimerActivity = nil
         Task {
-            await restTimerActivity?.end(nil, dismissalPolicy: .immediate)
-            restTimerActivity = nil
+            await existing?.end(nil, dismissalPolicy: .immediate)
         }
     }
 
     private func startWarmupLiveActivity() {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
         guard currentWarmupIndex < warmups.count else { return }
-
-        // End any existing warmup activity before starting a new one
-        Task { await warmupTimerActivity?.end(nil, dismissalPolicy: .immediate) }
 
         let endTime = Date().addingTimeInterval(TimeInterval(warmupTimeRemaining))
         let attributes = FitnessTimerAttributes(timerType: .warmup)
@@ -758,14 +769,24 @@ class TimerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
             stepIndex: currentWarmupIndex + 1,
             totalSteps: warmups.count
         )
-        do {
-            warmupTimerActivity = try Activity<FitnessTimerAttributes>.request(
-                attributes: attributes,
-                content: .init(state: state, staleDate: endTime.addingTimeInterval(5))
-            )
-            print("DEBUG: 🟢 Warmup Live Activity started for '\(warmups[currentWarmupIndex])'")
-        } catch {
-            print("DEBUG: 🔴 Failed to start warmup Live Activity: \(error)")
+
+        // Capture and clear synchronously, then end-then-start serially in one
+        // Task — see startRestTimerLiveActivity for why the old fire-and-forget
+        // end() Task could race with and immediately kill the new activity.
+        let existing = warmupTimerActivity
+        warmupTimerActivity = nil
+
+        Task {
+            await existing?.end(nil, dismissalPolicy: .immediate)
+            do {
+                self.warmupTimerActivity = try Activity<FitnessTimerAttributes>.request(
+                    attributes: attributes,
+                    content: .init(state: state, staleDate: endTime.addingTimeInterval(5))
+                )
+                print("DEBUG: 🟢 Warmup Live Activity started for '\(state.label)'")
+            } catch {
+                print("DEBUG: 🔴 Failed to start warmup Live Activity: \(error)")
+            }
         }
     }
 
@@ -786,9 +807,10 @@ class TimerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
     }
 
     private func endWarmupLiveActivity() {
+        let existing = warmupTimerActivity
+        warmupTimerActivity = nil
         Task {
-            await warmupTimerActivity?.end(nil, dismissalPolicy: .immediate)
-            warmupTimerActivity = nil
+            await existing?.end(nil, dismissalPolicy: .immediate)
         }
     }
 
