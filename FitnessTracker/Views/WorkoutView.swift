@@ -7,12 +7,13 @@ struct WorkoutView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.scenePhase) private var scenePhase
-    
+    @EnvironmentObject var session: ActiveWorkoutSession
+
     @ObservedObject var workoutManager: WorkoutManager
-    @StateObject var timerManager = TimerManager()
-    
+    @ObservedObject var timerManager: TimerManager
+
     let workout: NSManagedObject
-    
+
     @State private var showingAddExercise = false
     @State private var showingCancelAlert = false
     @State private var showingCompletionAlert = false
@@ -20,15 +21,14 @@ struct WorkoutView: View {
     @State private var isEditing = false
     @State private var isTemplateView: Bool
     @State private var editedTemplateName: String = ""
-    
+
     @State private var setValues: [String: (reps: Int16, weight: Double)] = [:]
     @State private var showingRestTimer = false
 
     // Warmup states
-    @State private var isShowingWarmupTimer = false
+    @State private var isShowingWarmupTimer: Bool
     @State private var warmups: [String] = []
     @State private var warmupDurations: [Int] = []
-    @State private var warmupsLoaded = false
     @State private var hasLoggedOnAppear = false
     @State private var hasLoggedMainWorkoutAppear = false
     @State private var hasLoggedWarmupTimerAppear = false
@@ -39,14 +39,19 @@ struct WorkoutView: View {
     @AppStorage("siriShortcutsEnabled") private var siriShortcutsEnabled = true
     @AppStorage("showWorkoutDetailsAfterCompletion") private var showWorkoutDetailsAfterCompletion = false
     
-    init(workout: NSManagedObject, workoutManager: WorkoutManager) {
-        
+    init(workout: NSManagedObject, workoutManager: WorkoutManager, timerManager: TimerManager) {
+
         self.workout = workout
         self._workoutManager = ObservedObject(wrappedValue: workoutManager)
-        
+        self._timerManager = ObservedObject(wrappedValue: timerManager)
+
         let isTemplate = workout.entity.name == "WorkoutTemplate"
         self._isTemplateView = State(initialValue: isTemplate)
-        
+        // The timer may already be mid-warmup if this view is being re-presented
+        // after the user restored a minimized workout — resume where it left off
+        // instead of restarting the warmup flow from scratch.
+        self._isShowingWarmupTimer = State(initialValue: timerManager.isWarmupTimerActive)
+
         if isTemplate {
             self._editedTemplateName = State(initialValue: workout.value(forKey: "name") as? String ?? "Untitled")
         } else {
@@ -84,6 +89,12 @@ struct WorkoutView: View {
         return "Workout"
     }
     
+    /// True once the warmup or workout timer has been started for this session —
+    /// used to avoid re-running warmup setup when a minimized workout is restored.
+    private var hasTimerSequenceStarted: Bool {
+        timerManager.isWarmupTimerActive || timerManager.isWorkoutTimerActive || timerManager.workoutElapsedSeconds > 0
+    }
+
     private var exercises: [NSManagedObject] {
         switch workout.entity.name {
         case "Workout":
@@ -250,21 +261,35 @@ struct WorkoutView: View {
         .onAppear {
             if !hasLoggedOnAppear {
                 print("DEBUG: 🚀 WorkoutView.onAppear called for \(isTemplateView ? "template" : "workout")")
-                print("DEBUG: 🚀 warmupsLoaded: \(warmupsLoaded), isTemplateView: \(isTemplateView)")
+                print("DEBUG: 🚀 hasTimerSequenceStarted: \(hasTimerSequenceStarted), isTemplateView: \(isTemplateView)")
                 hasLoggedOnAppear = true
             }
-            // Load warmups when the view appears for actual workouts
-            if !isTemplateView && !warmupsLoaded {
+            // Load warmups when the view appears for actual workouts. Guarded by the
+            // timer's own state (not a local flag) so restoring a minimized workout
+            // doesn't restart the warmup sequence that's already running or finished.
+            if !isTemplateView && !hasTimerSequenceStarted {
                 if !hasLoggedOnAppear {
                     print("DEBUG: 🚀 About to call loadWarmupsAndStartTimerIfNeeded from onAppear")
                 }
                 loadWarmupsAndStartTimerIfNeeded()
-                warmupsLoaded = true
 
                 if siriShortcutsEnabled && !isTemplateView {
                     let workoutName = templateName
                     SiriShortcutsManager.shared.donateStartWorkoutIntent(templateName: workoutName)
                     SiriShortcutsManager.shared.executeBackgroundShortcut(for: workoutName)
+                }
+            } else if !isTemplateView {
+                // Being restored (e.g. from the minimized orb) rather than started fresh.
+                // Pull in any exercises added to the template while minimized — starting a
+                // workout only ever copies the template's exercises once, so nothing else
+                // keeps them in sync.
+                syncExercisesWithTemplate()
+
+                if timerManager.isWarmupTimerActive {
+                    // Still mid-warmup: also re-pull the upcoming warmup list so edits made
+                    // while minimized (deleting/adding an upcoming step) take effect instead
+                    // of silently continuing to play the stale list loaded when warmups started.
+                    refreshUpcomingWarmupsFromTemplate()
                 }
             }
         }
@@ -282,12 +307,11 @@ struct WorkoutView: View {
                 SiriShortcutsManager.shared.executeBackgroundShortcut(for: workoutName)
             }
             
-            if !isTemplateView && !warmupsLoaded {
+            if !isTemplateView && !hasTimerSequenceStarted {
                 if !hasLoggedNotification {
                     print("DEBUG: 🎯 About to call loadWarmupsAndStartTimerIfNeeded from notification")
                 }
                 loadWarmupsAndStartTimerIfNeeded()
-                warmupsLoaded = true
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("SiriStartWorkout"))) { notification in
@@ -356,6 +380,18 @@ struct WorkoutView: View {
                                 dismiss()
                             }
                         }
+                    } else {
+                        // Minimizes the workout into a floating orb so the user can browse
+                        // other tabs while it keeps running. Kept small/unobtrusive since
+                        // it's not expected to be used often.
+                        Button {
+                            session.isMinimized = true
+                        } label: {
+                            Image(systemName: "chevron.down.circle")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                        .accessibilityLabel("Minimize Workout")
                     }
                 }
                 
@@ -404,9 +440,9 @@ struct WorkoutView: View {
                         name: Notification.Name("WorkoutWasDeleted"),
                         object: nil
                     )
-                    
+
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        dismiss()
+                        session.end()
                     }
                 }
                 Button("Continue Workout", role: .cancel) {}
@@ -421,7 +457,7 @@ struct WorkoutView: View {
                         showingCompletedWorkoutDetails = true
                     } else {
                         donateEndWorkoutShortcutIfEnabled()
-                        dismiss()
+                        session.end()
                     }
                 }
                 Button("Continue Workout", role: .cancel) {}
@@ -430,12 +466,14 @@ struct WorkoutView: View {
             }
             .sheet(isPresented: $showingCompletedWorkoutDetails, onDismiss: {
                 donateEndWorkoutShortcutIfEnabled()
-                dismiss()
+                session.end()
             }) {
                 WorkoutDetailView(workout: workout)
             }
             .onAppear {
-                if !isTemplateView && !isShowingWarmupTimer {
+                // Guard on isWorkoutTimerActive (not just a local flag) so restoring a
+                // minimized workout doesn't reset workoutStartTime and lose elapsed time.
+                if !isTemplateView && !isShowingWarmupTimer && !timerManager.isWorkoutTimerActive {
                     if !hasLoggedWorkoutTimer {
                         print("DEBUG: 🏃‍♂️ Starting workout timer (not in warmup mode)")
                         hasLoggedWorkoutTimer = true
@@ -560,6 +598,21 @@ struct WorkoutView: View {
         }
     }
     
+    private func syncExercisesWithTemplate() {
+        guard let templateObj = workout.value(forKey: "template") as? NSManagedObject else { return }
+        workoutManager.syncNewExercises(into: workout, from: templateObj)
+    }
+
+    private func refreshUpcomingWarmupsFromTemplate() {
+        guard let templateObj = workout.value(forKey: "template") as? NSManagedObject else { return }
+        let names = workoutManager.getWarmups(for: templateObj)
+        var durations = workoutManager.getWarmupDurations(for: templateObj)
+        if durations.count != names.count {
+            durations = Array(repeating: timerManager.defaultWarmupDuration, count: names.count)
+        }
+        timerManager.refreshUpcomingWarmups(names: names, durations: durations)
+    }
+
     private func startWorkoutFromSiri(templateName: String) {
         // This method would need access to WorkoutManager and template data
         // For now, we'll just handle the basic case

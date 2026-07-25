@@ -163,6 +163,17 @@ class TimerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
         return totalDuration
     }
     
+    /// Fully stops and clears every timer before a brand-new workout session begins.
+    func resetAll() {
+        _ = stopWorkoutTimer()
+        if isRestTimerActive {
+            stopRestTimer(manualStop: true)
+        }
+        if isWarmupTimerActive {
+            stopWarmupTimer()
+        }
+    }
+
     // MARK: - Audio
 
     private func playTimerChime() {
@@ -551,6 +562,31 @@ class TimerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
         }
     }
     
+    /// Re-syncs the not-yet-reached warmup steps with a fresh list from the template,
+    /// so edits made to the template while this workout is minimized (e.g. deleting an
+    /// upcoming warmup) take effect instead of silently playing the stale, originally
+    /// loaded list. The step already completed or in progress is left untouched — only
+    /// steps after it are replaced, matched back into the new list by name so already
+    /// finished steps aren't repeated.
+    func refreshUpcomingWarmups(names: [String], durations: [Int]) {
+        guard isWarmupTimerActive, !warmups.isEmpty, currentWarmupIndex < warmups.count else { return }
+
+        let doneOrCurrentNames = Array(warmups.prefix(currentWarmupIndex + 1))
+        let doneOrCurrentDurations = Array(warmupDurations.prefix(currentWarmupIndex + 1))
+
+        var upcomingStartIndex = 0
+        if let lastDoneName = doneOrCurrentNames.last, let matchIndex = names.lastIndex(of: lastDoneName) {
+            upcomingStartIndex = matchIndex + 1
+        }
+
+        let upcomingNames = upcomingStartIndex < names.count ? Array(names[upcomingStartIndex...]) : []
+        let upcomingDurations = upcomingStartIndex < durations.count ? Array(durations[upcomingStartIndex...]) : []
+
+        warmups = doneOrCurrentNames + upcomingNames
+        warmupDurations = doneOrCurrentDurations + upcomingDurations
+        print("DEBUG: ⏱️ Refreshed upcoming warmups: \(warmups)")
+    }
+
     func startCurrentWarmup() {
         guard isWarmupTimerActive && isWarmupTimerPaused else { return }
 

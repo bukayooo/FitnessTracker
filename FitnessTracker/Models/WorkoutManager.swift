@@ -169,10 +169,22 @@ class WorkoutManager: ObservableObject {
     }
     
     func deleteExercise(_ exercise: NSManagedObject) {
+        // Exercise -> workoutExercises is a Cascade relationship, so deleting a template
+        // exercise would otherwise silently wipe out every WorkoutExercise copied from it —
+        // including one the user is actively mid-set on right now, and any from completed
+        // workouts already in history. Detach (nullify) any copy that has real entered data
+        // first so it survives the cascade instead of being destroyed along with the
+        // template exercise; empty, never-touched copies are left to cascade-delete normally.
+        if let workoutExercises = exercise.value(forKey: "workoutExercises") as? Set<NSManagedObject> {
+            for workoutExercise in workoutExercises where workoutExerciseHasEnteredData(workoutExercise) {
+                workoutExercise.setValue(nil, forKey: "exercise")
+            }
+        }
+
         if let template = exercise.value(forKey: "template") as? NSManagedObject,
            let exercises = template.value(forKey: "exercises") as? Set<NSManagedObject> {
             let exerciseOrder = exercise.value(forKey: "order") as? Int16 ?? 0
-            
+
             // Reorder remaining exercises
             for remainingExercise in exercises {
                 let order = remainingExercise.value(forKey: "order") as? Int16 ?? 0
@@ -181,11 +193,65 @@ class WorkoutManager: ObservableObject {
                 }
             }
         }
-        
+
         viewContext.delete(exercise)
         saveContext()
     }
+
+    /// True if any set on this WorkoutExercise has a real entered rep count or weight.
+    private func workoutExerciseHasEnteredData(_ workoutExercise: NSManagedObject) -> Bool {
+        guard let sets = workoutExercise.value(forKey: "sets") as? Set<NSManagedObject> else { return false }
+        return sets.contains { set in
+            let reps = set.value(forKey: "reps") as? Int16 ?? 0
+            let weight = set.value(forKey: "weight") as? Double ?? 0
+            return reps > 0 || weight > 0
+        }
+    }
     
+    /// Adds any exercises present in `template` but not yet represented in `workout`'s
+    /// exercise list, mirroring the same set-count heuristic used when the workout was
+    /// first started. Used when restoring a minimized workout so exercises added to the
+    /// template while it was minimized actually show up — starting a workout only ever
+    /// copies the template's exercises once, so nothing else keeps them in sync.
+    func syncNewExercises(into workout: NSManagedObject, from template: NSManagedObject) {
+        guard let templateExercises = template.value(forKey: "exercises") as? Set<NSManagedObject>,
+              let existingWorkoutExercises = workout.value(forKey: "exercises") as? Set<NSManagedObject> else { return }
+
+        let alreadyRepresented = Set(existingWorkoutExercises.compactMap { $0.value(forKey: "exercise") as? NSManagedObject })
+        let newExercises = templateExercises
+            .filter { !alreadyRepresented.contains($0) }
+            .sorted { ($0.value(forKey: "order") as? Int16 ?? 0) < ($1.value(forKey: "order") as? Int16 ?? 0) }
+
+        guard !newExercises.isEmpty else { return }
+
+        var nextOrder: Int16 = (existingWorkoutExercises.compactMap { $0.value(forKey: "order") as? Int16 }.max() ?? -1) + 1
+
+        for exercise in newExercises {
+            guard let exerciseEntity = NSEntityDescription.entity(forEntityName: "WorkoutExercise", in: viewContext) else { continue }
+
+            let workoutExercise = NSManagedObject(entity: exerciseEntity, insertInto: viewContext)
+            workoutExercise.setValue(exercise.value(forKey: "name"), forKey: "name")
+            workoutExercise.setValue(nextOrder, forKey: "order")
+            workoutExercise.setValue(exercise, forKey: "exercise")
+            workoutExercise.setValue(workout, forKey: "workout")
+            nextOrder += 1
+
+            let previousSetsCount = getLastWorkoutSetsCount(for: exercise)
+            let setsToCreate = max(Int(exercise.value(forKey: "sets") as? Int16 ?? 3), previousSetsCount)
+
+            for setIndex in 0..<setsToCreate {
+                guard let setEntity = NSEntityDescription.entity(forEntityName: "ExerciseSet", in: viewContext) else { continue }
+                let exerciseSet = NSManagedObject(entity: setEntity, insertInto: viewContext)
+                exerciseSet.setValue(Int16(setIndex), forKey: "setNumber")
+                exerciseSet.setValue(workoutExercise, forKey: "workoutExercise")
+            }
+
+            print("DEBUG: 📊 Synced new exercise '\(exercise.value(forKey: "name") as? String ?? "unknown")' (\(setsToCreate) sets) into active workout")
+        }
+
+        saveContext()
+    }
+
     func moveExercise(in template: NSManagedObject, from source: IndexSet, to destination: Int) {
         // Get exercises sorted by order
         let fetchRequest = NSFetchRequest<NSManagedObject>(entityName: "Exercise")

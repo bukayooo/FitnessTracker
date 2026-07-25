@@ -132,7 +132,7 @@ struct SettingsView: View {
                             .foregroundColor(.green)
                             .fontWeight(.semibold)
                             .frame(width: 40, alignment: .leading)
-                        Text("Very easy → +15%")
+                        Text("Easy → +15%")
                             .foregroundColor(.secondary)
                     }
                     HStack {
@@ -140,7 +140,7 @@ struct SettingsView: View {
                             .foregroundColor(.green)
                             .fontWeight(.semibold)
                             .frame(width: 40, alignment: .leading)
-                        Text("Easy → +12%")
+                        Text("Somewhat easy → +12%")
                             .foregroundColor(.secondary)
                     }
                     HStack {
@@ -148,7 +148,7 @@ struct SettingsView: View {
                             .foregroundColor(.orange)
                             .fontWeight(.semibold)
                             .frame(width: 40, alignment: .leading)
-                        Text("Somewhat easy → +8%")
+                        Text("Moderate effort → +8%")
                             .foregroundColor(.secondary)
                     }
                     HStack {
@@ -156,7 +156,7 @@ struct SettingsView: View {
                             .foregroundColor(.orange)
                             .fontWeight(.semibold)
                             .frame(width: 40, alignment: .leading)
-                        Text("Moderate effort → +5%")
+                        Text("Hard, completed with difficulty → +5%")
                             .foregroundColor(.secondary)
                     }
                     HStack {
@@ -164,7 +164,7 @@ struct SettingsView: View {
                             .foregroundColor(.red)
                             .fontWeight(.semibold)
                             .frame(width: 40, alignment: .leading)
-                        Text("Hard, completed with difficulty → +3%")
+                        Text("Barely completed all reps with full range of motion → +3%")
                             .foregroundColor(.secondary)
                     }
                     HStack {
@@ -172,7 +172,7 @@ struct SettingsView: View {
                             .foregroundColor(.red)
                             .fontWeight(.semibold)
                             .frame(width: 40, alignment: .leading)
-                        Text("Barely completed all reps → hold weight")
+                        Text("Last few reps weren't full range of motion → hold weight")
                             .foregroundColor(.secondary)
                     }
                     HStack {
@@ -186,7 +186,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Heat Rating Scale")
                 } footer: {
-                    Text("Weight suggestions are rounded to the nearest 2.5 lbs.")
+                    Text("Sitting comfortably at a heat rating of 7-8 is when you know you should incrase the weight; try to always be gettings 9s or 10s. Weight suggestions are rounded to the nearest 2.5 lbs.")
                 }
             }
             .navigationTitle("Settings")

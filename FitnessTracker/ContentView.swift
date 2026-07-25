@@ -12,46 +12,77 @@ import Intents
 struct ContentView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @StateObject var workoutManager: WorkoutManager
+    @StateObject private var session = ActiveWorkoutSession()
     @State private var selectedTab = 0  // Start with Templates tab to avoid interference
     @AppStorage("siriShortcutsEnabled") private var siriShortcutsEnabled = true
-    
+
     init() {
         // Initialize WorkoutManager with the injected context
         let context = PersistenceController.shared.container.viewContext
         self._workoutManager = StateObject(wrappedValue: WorkoutManager(context: context))
     }
-    
-    var body: some View {
-        TabView(selection: $selectedTab) {
-            TemplatesView()
-                .environment(\.managedObjectContext, viewContext)
-                .environmentObject(workoutManager)
-                .tabItem {
-                    Label("Templates", systemImage: "list.bullet")
-                }
-                .tag(0)
-            
-            WorkoutTabView()
-                .environment(\.managedObjectContext, viewContext)
-                .environmentObject(workoutManager)
-                .tabItem {
-                    Label("Workout", systemImage: "dumbbell")
-                }
-                .tag(1)
-            
-            ProgressTabView()
-                .environment(\.managedObjectContext, viewContext)
-                .environmentObject(workoutManager)
-                .tabItem {
-                    Label("Progress", systemImage: "chart.line.uptrend.xyaxis")
-                }
-                .tag(2)
 
-            SettingsView()
-                .tabItem {
-                    Label("Settings", systemImage: "gear")
+    var body: some View {
+        ZStack(alignment: .bottomTrailing) {
+            TabView(selection: $selectedTab) {
+                TemplatesView()
+                    .environment(\.managedObjectContext, viewContext)
+                    .environmentObject(workoutManager)
+                    .environmentObject(session)
+                    .tabItem {
+                        Label("Templates", systemImage: "list.bullet")
+                    }
+                    .tag(0)
+
+                WorkoutTabView()
+                    .environment(\.managedObjectContext, viewContext)
+                    .environmentObject(workoutManager)
+                    .environmentObject(session)
+                    .tabItem {
+                        Label("Workout", systemImage: "dumbbell")
+                    }
+                    .tag(1)
+
+                ProgressTabView()
+                    .environment(\.managedObjectContext, viewContext)
+                    .environmentObject(workoutManager)
+                    .tabItem {
+                        Label("Progress", systemImage: "chart.line.uptrend.xyaxis")
+                    }
+                    .tag(2)
+
+                SettingsView()
+                    .tabItem {
+                        Label("Settings", systemImage: "gear")
+                    }
+                    .tag(3)
+            }
+
+            // Floating orb for a minimized workout — visible above every tab, including
+            // Settings, since it's rendered here rather than inside any one tab's view.
+            if session.isActive && session.isMinimized {
+                WorkoutOrbView(session: session)
+                    .padding(.trailing, 16)
+                    .padding(.bottom, 78)
+            }
+        }
+        // Single source of truth for presenting the active workout, regardless of
+        // whether it was started from a template, a blank workout, or Siri. Using a
+        // custom Binding (rather than tying isPresented straight to `isMinimized`)
+        // means swiping the sheet down also minimizes instead of losing the workout.
+        .sheet(isPresented: Binding(
+            get: { session.isActive && !session.isMinimized },
+            set: { isPresented in
+                if !isPresented && session.isActive {
+                    session.isMinimized = true
                 }
-                .tag(3)
+            }
+        )) {
+            if let workout = session.workout {
+                WorkoutView(workout: workout, workoutManager: workoutManager, timerManager: session.timerManager)
+                    .environment(\.managedObjectContext, viewContext)
+                    .environmentObject(session)
+            }
         }
         .onAppear {
             // Set the default tab to Workout after the view appears
@@ -70,9 +101,29 @@ struct ContentView: View {
                 handleSiriWorkoutStart(templateName: templateName)
             }
         }
+        // Consolidated here (rather than in each tab that can trigger a workout start)
+        // so there's exactly one place that owns presenting the active workout sheet.
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("StartWorkoutFromTemplate"))) { notification in
+            guard let workout = notification.userInfo?["workout"] as? NSManagedObject else {
+                print("DEBUG: StartWorkoutFromTemplate notification missing workout")
+                return
+            }
+            guard workout.isValid, let freshWorkout = try? viewContext.existingObject(with: workout.objectID) else {
+                print("DEBUG: Failed to load workout data from StartWorkoutFromTemplate notification")
+                return
+            }
+            selectedTab = 1
+            session.start(with: freshWorkout)
+        }
     }
 
     private func handleSiriWorkoutStart(templateName: String) {
+        guard !session.isActive else {
+            print("DEBUG: 🎤 A workout is already in progress, bringing it back into view")
+            selectedTab = 1
+            session.isMinimized = false
+            return
+        }
         let templates = workoutManager.fetchAllTemplates()
         if let matchingTemplate = templates.first(where: { template in
             let name = template.value(forKey: "name") as? String ?? ""
@@ -97,12 +148,9 @@ struct ContentView: View {
 struct WorkoutTabView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @EnvironmentObject var workoutManager: WorkoutManager
+    @EnvironmentObject var session: ActiveWorkoutSession
     @State private var showingTemplateSelector = false
     @State private var selectedTemplate: IdentifiableManagedObject?
-
-    // Add state for blank workout
-    @State private var showingBlankWorkout = false
-    @State private var blankWorkout: NSManagedObject?
 
     // Track loading state
     @State private var isLoading = false
@@ -169,8 +217,13 @@ struct WorkoutTabView: View {
                     
                     // Blank workout button
                     Button {
-                        print("DEBUG: Creating blank workout")
-                        createBlankWorkout()
+                        if session.isActive {
+                            print("DEBUG: Workout already in progress, restoring it instead of creating a blank one")
+                            session.isMinimized = false
+                        } else {
+                            print("DEBUG: Creating blank workout")
+                            createBlankWorkout()
+                        }
                     } label: {
                         HStack {
                             if isLoading {
@@ -237,6 +290,7 @@ struct WorkoutTabView: View {
                         ], spacing: 16) {
                             ForEach(workoutManager.fetchAllTemplates(), id: \.self) { template in
                                 TemplateCard(template: template)
+                                    .id(template.contentVersionID)
                                     .onTapGesture {
                                         selectedTemplate = template.asIdentifiable
                                     }
@@ -281,55 +335,77 @@ struct WorkoutTabView: View {
                         selectedTemplate = nil
                     }
             }
-            .sheet(isPresented: $showingBlankWorkout) {
-                if let workout = blankWorkout {
-                    WorkoutView(
-                        workout: workout,
-                        workoutManager: self.workoutManager
-                    )
-                    .environment(\.managedObjectContext, viewContext)
-                    .onDisappear {
-                        // Reset blankWorkout to prevent reuse of stale data
-                        blankWorkout = nil
-                        showingBlankWorkout = false
-                    }
-                }
-            }
         }
         }
     }
-    
+
     private func createBlankWorkout() {
         print("DEBUG: Creating blank workout in WorkoutTabView")
-        
+
         // Set loading state
         isLoading = true
         errorMessage = nil
         showingError = false
-        
-        // Make sure we're creating fresh instances
-        blankWorkout = nil
-        showingBlankWorkout = false
-        
-        // Create the new workout in a background thread
-        DispatchQueue.global(qos: .userInitiated).async {
-            // Create workout on background thread
-            let workout = self.workoutManager.createBlankWorkout()
-            
-            // Switch back to main thread for UI updates
-            DispatchQueue.main.async {
-                print("DEBUG: Blank workout created with ID: \(workout.objectID)")
-                
-                // Set the blank workout
-                self.blankWorkout = workout
-                
-                // Delay slightly to ensure the context has time to fully process
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    self.isLoading = false
-                    self.showingBlankWorkout = true
-                }
-            }
+
+        // workoutManager's context is main-queue-confined (NSPersistentContainer.viewContext),
+        // so this must run on the main thread. Dispatching it to a background queue (as this
+        // used to do) races with any concurrent main-thread Core Data access — e.g. a template
+        // list re-rendering — and corrupts the context, crashing the app.
+        let workout = workoutManager.createBlankWorkout()
+        print("DEBUG: Blank workout created with ID: \(workout.objectID)")
+        isLoading = false
+        session.start(with: workout)
+    }
+}
+
+// MARK: - Floating Workout Orb
+
+/// Small floating button shown when a workout is minimized, so the user can
+/// keep browsing other tabs while it keeps running and tap back into it.
+struct WorkoutOrbView: View {
+    let session: ActiveWorkoutSession
+    // Observed directly (not read through `session`) because SwiftUI only re-renders
+    // on @Published changes to objects it's directly observing — going through a
+    // computed property on `session` wouldn't pick up TimerManager's own @Published
+    // ticks, which is why the orb's clock used to appear frozen.
+    @ObservedObject var timerManager: TimerManager
+
+    init(session: ActiveWorkoutSession) {
+        self.session = session
+        self.timerManager = session.timerManager
+    }
+
+    private var isInWarmup: Bool {
+        timerManager.isWarmupTimerActive
+    }
+
+    private var timeLabel: String {
+        if isInWarmup {
+            let minutes = timerManager.warmupTimeRemaining / 60
+            let seconds = timerManager.warmupTimeRemaining % 60
+            return String(format: "%d:%02d", minutes, seconds)
         }
+        return timerManager.formattedWorkoutTime
+    }
+
+    var body: some View {
+        Button {
+            session.isMinimized = false
+        } label: {
+            VStack(spacing: 2) {
+                Image(systemName: isInWarmup ? "flame.fill" : "dumbbell.fill")
+                    .font(.system(size: 15, weight: .semibold))
+                Text(timeLabel)
+                    .font(.system(size: 11, weight: .semibold, design: .monospaced))
+            }
+            .foregroundColor(.white)
+            .frame(width: 60, height: 60)
+            .background(Color.fitnessPrimary)
+            .clipShape(Circle())
+            .shadow(color: .black.opacity(0.25), radius: 6, y: 3)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Resume Workout")
     }
 }
 
@@ -353,7 +429,7 @@ struct TemplateCard: View {
                 .font(.headline)
                 .lineLimit(1)
             
-            Text("\(exerciseCount) exercises")
+            Text("\(exerciseCount) exercise\(exerciseCount == 1 ? "" : "s")")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
         }
@@ -379,6 +455,7 @@ struct SelectTemplateView: View {
             List {
                 ForEach(workoutManager.fetchAllTemplates(), id: \.self) { template in
                     TemplateSelectionRow(template: template)
+                        .id(template.contentVersionID)
                         .contentShape(Rectangle())
                         .onTapGesture {
                             selectedTemplate = template.asIdentifiable
@@ -419,11 +496,11 @@ struct TemplateSelectionRow: View {
                 Text(templateName)
                     .font(.headline)
                 
-                Text("\(exerciseCount) exercises")
+                Text("\(exerciseCount) exercise\(exerciseCount == 1 ? "" : "s")")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }
-            
+
             Spacer()
             
             Image(systemName: "chevron.right")
@@ -449,6 +526,16 @@ extension NSManagedObject {
     // Helper to check if an object is valid
     var isValid: Bool {
         return !isDeleted && managedObjectContext != nil
+    }
+
+    // For WorkoutTemplate objects: an id that changes whenever the template's exercise
+    // count changes, even though the object's own identity (objectID) doesn't. ForEach
+    // and LazyVGrid reuse rows by id, so without this a template card's exercise count
+    // can keep showing a stale number after an exercise is added or removed, since the
+    // underlying NSManagedObject is mutated in place rather than replaced.
+    var contentVersionID: String {
+        let exerciseCount = (value(forKey: "exercises") as? NSSet)?.count ?? 0
+        return "\(objectID.uriRepresentation())-\(exerciseCount)"
     }
 }
 

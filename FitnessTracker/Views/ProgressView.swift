@@ -179,7 +179,7 @@ struct WorkoutHistoryRow: View {
                 .font(.headline)
             
             HStack {
-                Label("\(exerciseCount) exercises", systemImage: "dumbbell")
+                Label("\(exerciseCount) exercise\(exerciseCount == 1 ? "" : "s")", systemImage: "dumbbell")
                 
                 Spacer()
                 

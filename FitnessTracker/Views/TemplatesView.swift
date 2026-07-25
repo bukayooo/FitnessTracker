@@ -16,70 +16,15 @@ struct TemplatesView: View {
     @State private var showingTemplateDetail = false
     @State private var selectedTemplate: NSManagedObject?
     @State private var searchText = ""
-    
-    // Add state for showing newly created workout
-    @State private var showingNewWorkout = false
-    @State private var newWorkoutObject: NSManagedObject?
-    
+
     // Force view to refresh when templateCount changes
     @State private var refreshToggle = false
-    
-    // Error handling
-    @State private var isLoading = false
-    @State private var errorMessage: String?
-    @State private var showingError = false
-    
+
     var body: some View {
         // Use the old style NavigationView with navigationBarItems
         // which has better compatibility
         NavigationView {
-            ZStack {
-                contentView
-                
-                if isLoading {
-                    Color.black.opacity(0.4)
-                        .edgesIgnoringSafeArea(.all)
-                    
-                    VStack {
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                            .scaleEffect(1.5)
-                        
-                        Text("Loading...")
-                            .foregroundColor(.white)
-                            .padding(.top)
-                    }
-                    .padding()
-                    .background(Color.gray.opacity(0.8))
-                    .cornerRadius(10)
-                }
-                
-                if let error = errorMessage, showingError {
-                    VStack {
-                        Text("Error")
-                            .font(.headline)
-                            .foregroundColor(.white)
-                        
-                        Text(error)
-                            .foregroundColor(.white)
-                            .multilineTextAlignment(.center)
-                        
-                        Button("Dismiss") {
-                            showingError = false
-                        }
-                        .padding(.top)
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 8)
-                        .background(Color.fitnessPrimary)
-                        .cornerRadius(8)
-                    }
-                    .padding()
-                    .background(Color.red.opacity(0.9))
-                    .cornerRadius(10)
-                    .padding()
-                }
-            }
+            contentView
         }
         .sheet(isPresented: $showingNewTemplate) {
             CreateTemplateView()
@@ -101,55 +46,12 @@ struct TemplatesView: View {
                     .padding()
             }
         }
-        .sheet(isPresented: $showingNewWorkout) {
-            if let workout = newWorkoutObject {
-                WorkoutView(workout: workout, workoutManager: workoutManager)
-                    .environment(\.managedObjectContext, viewContext)
-                    .onDisappear {
-                        // Reset the workout object after viewing
-                        newWorkoutObject = nil
-                        showingNewWorkout = false
-                    }
-            } else {
-                // Handle missing workout
-                Text("Workout is no longer available")
-                    .padding()
-            }
-        }
         .onAppear {
             refreshTemplates()
         }
-        // onReceive auto-cancels when the view disappears, so observers never accumulate
-        // across sheet presentations. Previously addObserver was called in onAppear (which
-        // fires after every sheet dismiss) using an API that can't be removed by name, so
-        // each sheet open/close added another duplicate observer.
-        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("StartWorkoutFromTemplate"))) { notification in
-            print("DEBUG: Received notification to start workout")
-            isLoading = true
-            errorMessage = nil
-            showingError = false
-
-            guard let userInfo = notification.userInfo,
-                  let workout = userInfo["workout"] as? NSManagedObject else {
-                handleError("No workout data provided")
-                return
-            }
-            print("DEBUG: Setting up to show workout: \(workout.objectID)")
-            newWorkoutObject = nil
-            showingNewWorkout = false
-
-            guard workout.isValid,
-                  let freshWorkout = try? viewContext.existingObject(with: workout.objectID) else {
-                handleError("Failed to load workout data")
-                return
-            }
-            print("DEBUG: Successfully retrieved fresh workout")
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                isLoading = false
-                newWorkoutObject = freshWorkout
-                showingNewWorkout = true
-            }
-        }
+        // Starting a workout from a template (and from Siri, and from within a template's
+        // own WorkoutView) is now handled centrally by ContentView, which owns the single
+        // active-workout sheet so it can be minimized and resumed from any tab.
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("TemplateCreated"))) { _ in
             print("DEBUG: Received notification that template was created")
             refreshTemplates()
@@ -175,17 +77,7 @@ struct TemplatesView: View {
             }
         }
     }
-    
-    
-    private func handleError(_ message: String) {
-        print("DEBUG: Error: \(message)")
-        DispatchQueue.main.async {
-            self.isLoading = false
-            self.errorMessage = message
-            self.showingError = true
-        }
-    }
-    
+
     var contentView: some View {
         // Use cached templates instead of fetching on every render
         let templates = workoutManager.templates
@@ -205,6 +97,7 @@ struct TemplatesView: View {
                             showingTemplateDetail = true
                         } label: {
                             TemplateListRow(template: template)
+                                .id(template.contentVersionID)
                         }
                         .buttonStyle(.plain)
                     }
@@ -252,11 +145,11 @@ struct TemplateListRow: View {
                 Text(templateName)
                     .font(.headline)
                 
-                Text("\(exerciseCount) exercises")
+                Text("\(exerciseCount) exercise\(exerciseCount == 1 ? "" : "s")")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }
-            
+
             Spacer()
             
             Image(systemName: "chevron.right")
@@ -517,7 +410,8 @@ struct TemplateDetailView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var workoutManager: WorkoutManager
-    
+    @EnvironmentObject var session: ActiveWorkoutSession
+
     let template: NSManagedObject
     
     @State private var isEditing = false
@@ -651,9 +545,7 @@ struct TemplateDetailView: View {
                                         Stepper("", value: $exercises[index].sets, in: 1...10)
                                             .labelsHidden()
                                             .onChange(of: exercises[index].sets) { _, newValue in
-                                                if let exerciseObj = (template.value(forKey: "exercises") as? NSSet)?.allObjects
-                                                    .compactMap({ $0 as? NSManagedObject })
-                                                    .first(where: { $0.value(forKey: "order") as? Int16 == Int16(exercises[index].order) }) {
+                                                if let exerciseObj = exerciseObject(atOrder: exercises[index].order) {
                                                     workoutManager.updateExercise(exerciseObj, name: exercises[index].name, sets: Int16(newValue))
                                                 }
                                             }
@@ -685,35 +577,35 @@ struct TemplateDetailView: View {
                 if !isEditing {
                     Section {
                         Button {
+                            guard !session.isActive else {
+                                print("DEBUG: Workout already in progress, restoring it instead of starting a new one")
+                                session.isMinimized = false
+                                dismiss()
+                                return
+                            }
                             print("DEBUG: Starting workout from template: \(templateName)")
-                            let loadingAlert = UIAlertController(title: "Starting Workout", message: "Please wait...", preferredStyle: .alert)
-                            let windowScene = UIApplication.shared.connectedScenes.first(where: { $0 is UIWindowScene }) as? UIWindowScene
-                            let window = windowScene?.windows.first { $0.isKeyWindow }
-                            window?.rootViewController?.present(loadingAlert, animated: true)
-                            
-                            DispatchQueue.global(qos: .userInitiated).async {
-                                if let workout = workoutManager.startWorkout(from: template) {
-                                    print("DEBUG: Created new workout with ID: \(workout.objectID)")
-                                    DispatchQueue.main.async {
-                                        loadingAlert.dismiss(animated: true)
-                                        dismiss()
-                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                            NotificationCenter.default.post(
-                                                name: Notification.Name("StartWorkoutFromTemplate"),
-                                                object: nil,
-                                                userInfo: ["workout": workout]
-                                            )
-                                            print("DEBUG: Posted notification to start workout")
-                                        }
-                                    }
-                                } else {
-                                    DispatchQueue.main.async {
-                                        loadingAlert.dismiss(animated: true)
-                                        let errorAlert = UIAlertController(title: "Error", message: "Failed to create workout from template", preferredStyle: .alert)
-                                        errorAlert.addAction(UIAlertAction(title: "OK", style: .default))
-                                        window?.rootViewController?.present(errorAlert, animated: true)
-                                    }
+                            // workoutManager's context is main-queue-confined, so this must run
+                            // synchronously here rather than on a background queue (as this used
+                            // to do) — dispatching Core Data work to another thread races with
+                            // any concurrent main-thread access to the same context and corrupts
+                            // it, crashing the app.
+                            if let workout = workoutManager.startWorkout(from: template) {
+                                print("DEBUG: Created new workout with ID: \(workout.objectID)")
+                                dismiss()
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                    NotificationCenter.default.post(
+                                        name: Notification.Name("StartWorkoutFromTemplate"),
+                                        object: nil,
+                                        userInfo: ["workout": workout]
+                                    )
+                                    print("DEBUG: Posted notification to start workout")
                                 }
+                            } else {
+                                let windowScene = UIApplication.shared.connectedScenes.first(where: { $0 is UIWindowScene }) as? UIWindowScene
+                                let window = windowScene?.windows.first { $0.isKeyWindow }
+                                let errorAlert = UIAlertController(title: "Error", message: "Failed to create workout from template", preferredStyle: .alert)
+                                errorAlert.addAction(UIAlertAction(title: "OK", style: .default))
+                                window?.rootViewController?.present(errorAlert, animated: true)
                             }
                         } label: {
                             HStack {
@@ -767,13 +659,13 @@ struct TemplateDetailView: View {
             }
             .sheet(isPresented: $showingAddExercise) {
                 AddExerciseView { exerciseName in
-                    let newExercise = TemplateExerciseItem(name: exerciseName, order: exercises.count)
-                    exercises.append(newExercise)
+                    _ = workoutManager.addExercise(to: template, name: exerciseName)
+                    loadExercises()
                 }
             }
         }
     }
-    
+
     private func loadWarmups() {
         warmups = workoutManager.getWarmups(for: template)
         warmupDurations = workoutManager.getWarmupDurations(for: template)
@@ -810,20 +702,28 @@ struct TemplateDetailView: View {
         }
     }
     
+    /// Looks up the Core Data Exercise object backing a row in the local `exercises`
+    /// array, matched by its `order` value.
+    private func exerciseObject(atOrder order: Int) -> NSManagedObject? {
+        (template.value(forKey: "exercises") as? NSSet)?.allObjects
+            .compactMap { $0 as? NSManagedObject }
+            .first { $0.value(forKey: "order") as? Int16 == Int16(order) }
+    }
+
     private func deleteExercise(at offsets: IndexSet) {
-        exercises.remove(atOffsets: offsets)
-        for i in 0..<exercises.count {
-            exercises[i].order = i
+        for index in offsets {
+            if let exerciseObj = exerciseObject(atOrder: exercises[index].order) {
+                workoutManager.deleteExercise(exerciseObj)
+            }
         }
+        loadExercises()
     }
-    
+
     private func moveExercise(from source: IndexSet, to destination: Int) {
-        exercises.move(fromOffsets: source, toOffset: destination)
-        for i in 0..<exercises.count {
-            exercises[i].order = i
-        }
+        workoutManager.moveExercise(in: template, from: source, to: destination)
+        loadExercises()
     }
-    
+
     private func saveChanges() {
         template.setValue(templateName, forKey: "name")
         do {
