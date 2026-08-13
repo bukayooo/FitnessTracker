@@ -964,15 +964,16 @@ class WorkoutManager: ObservableObject {
             let workoutExercises = try viewContext.fetch(workoutExerciseRequest)
             for exercise in workoutExercises {
                 if let name = exercise.value(forKey: "name") as? String, !name.isEmpty {
-                    // Only add exercises that have at least one completed set with non-zero values
+                    // Only add exercises that have at least one completed set.
+                    // Reps alone qualify: bodyweight exercises (pull-ups, dips) are
+                    // logged with a weight of 0 and would otherwise never show up.
                     if let sets = exercise.value(forKey: "sets") as? NSSet {
                         var hasCompletedSet = false
-                        
+
                         for case let setObj as NSManagedObject in sets {
                             let reps = setObj.value(forKey: "reps") as? Int16 ?? 0
-                            let weight = setObj.value(forKey: "weight") as? Double ?? 0.0
-                            
-                            if reps > 0 && weight > 0 {
+
+                            if reps > 0 {
                                 hasCompletedSet = true
                                 break
                             }

@@ -227,7 +227,9 @@ struct WorkoutTabView: View {
                     } label: {
                         HStack {
                             if isLoading {
-                                ProgressView()
+                                // Fully qualified: ProgressView.swift declares a type of
+                                // the same name, which would otherwise shadow the spinner.
+                                SwiftUI.ProgressView()
                                     .progressViewStyle(CircularProgressViewStyle(tint: .white))
                             } else {
                                 Image(systemName: "plus")

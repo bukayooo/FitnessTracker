@@ -98,9 +98,9 @@ struct SettingsView: View {
                     }
                     Toggle(isOn: $showWorkoutDetailsAfterCompletion) {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("Show Details After Workout")
+                            Text("Show Progress After Workout")
                                 .font(.body)
-                            Text("Automatically show the details of your workout after you complete it")
+                            Text("Automatically show progress charts for the exercises you just trained after you complete a workout")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }

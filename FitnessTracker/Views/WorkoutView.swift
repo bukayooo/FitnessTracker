@@ -3,6 +3,18 @@ import CoreData
 import Combine
 import Intents
 
+/// What the user has entered for one set during the active workout.
+///
+/// `weightEntered` exists because a stored weight of 0 is ambiguous: it means
+/// both "bodyweight / no added load" and "hasn't been filled in yet". Keeping the
+/// two apart is what allows 0 to be typed into the weight field without the
+/// previous-weight hint reappearing on top of it.
+struct SetEntry {
+    var reps: Int16 = 0
+    var weight: Double = 0
+    var weightEntered: Bool = false
+}
+
 struct WorkoutView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var viewContext
@@ -23,12 +35,12 @@ struct WorkoutView: View {
     @State private var showingAddExercise = false
     @State private var showingCancelAlert = false
     @State private var showingCompletionAlert = false
-    @State private var showingCompletedWorkoutDetails = false
+    @State private var showingCompletedWorkoutProgress = false
     @State private var isEditing = false
     @State private var isTemplateView: Bool
     @State private var editedTemplateName: String = ""
 
-    @State private var setValues: [String: (reps: Int16, weight: Double)] = [:]
+    @State private var setValues: [String: SetEntry] = [:]
     @State private var showingRestTimer = false
 
     // Warmup states
@@ -427,7 +439,7 @@ struct WorkoutView: View {
                     let duration = timerManager.workoutElapsedSeconds
                     workoutManager.completeWorkout(workout, duration: duration)
                     if showWorkoutDetailsAfterCompletion {
-                        showingCompletedWorkoutDetails = true
+                        showingCompletedWorkoutProgress = true
                     } else {
                         donateEndWorkoutShortcutIfEnabled()
                         session.end()
@@ -437,11 +449,12 @@ struct WorkoutView: View {
             } message: {
                 Text("Have you completed all your exercises? The workout will be saved to your history.")
             }
-            .sheet(isPresented: $showingCompletedWorkoutDetails, onDismiss: {
+            .sheet(isPresented: $showingCompletedWorkoutProgress, onDismiss: {
                 donateEndWorkoutShortcutIfEnabled()
                 session.end()
             }) {
-                WorkoutDetailView(workout: workout)
+                WorkoutProgressSummaryView(workout: workout)
+                    .environmentObject(workoutManager)
             }
             .onAppear {
                 // Guard on isWorkoutTimerActive (not just a local flag) so restoring a
@@ -654,7 +667,7 @@ struct ExerciseCard: View {
     let exercise: NSManagedObject
     let workoutManager: WorkoutManager
     let timerManager: TimerManager
-    @Binding var setValues: [String: (reps: Int16, weight: Double)]
+    @Binding var setValues: [String: SetEntry]
     @Binding var showingRestTimer: Bool
 
     var isTemplateView: Bool = false
@@ -836,7 +849,7 @@ struct SetRow: View {
     let set: NSManagedObject
     let setNumber: Int
     let isActive: Bool
-    @Binding var setValues: [String: (reps: Int16, weight: Double)]
+    @Binding var setValues: [String: SetEntry]
     @Binding var showingRestTimer: Bool
     let activateNextSet: () -> Void
     let workoutManager: WorkoutManager
@@ -845,6 +858,8 @@ struct SetRow: View {
 
     @State private var showRestButton = false
     @FocusState private var isTextFieldFocused: Bool
+    @State private var weightText: String = ""
+    @State private var hasSeededWeightText = false
     @State private var previousSetData: (reps: Int16, weight: Double)? = nil
     @State private var heatRating: Int = 0          // 0 = unrated, 1-10 = effort level
     @State private var previousHeatRating: Int = 0  // last session's heat for this set
@@ -888,6 +903,63 @@ struct SetRow: View {
         return ((prev.weight * multiplier) / 2.5).rounded() * 2.5
     }
     
+    /// This set's entry, or one seeded from Core Data when the user hasn't edited
+    /// it yet this session (a workout reopened after being minimized starts with
+    /// an empty `setValues`). Seeding matters because editing one field must not
+    /// blank out the value already stored in the other.
+    private var currentEntry: SetEntry {
+        if let entry = setValues[setId] { return entry }
+
+        let weight = set.value(forKey: "weight") as? Double ?? 0
+        return SetEntry(
+            reps: set.value(forKey: "reps") as? Int16 ?? 0,
+            weight: weight,
+            weightEntered: weight > 0
+        )
+    }
+
+    /// Restores the weight field's text when the row first appears, and again
+    /// after the enclosing LazyVStack recycles it on scroll. Without this, a
+    /// deliberately entered 0 would look unfilled the moment the row came back.
+    private func seedWeightTextIfNeeded() {
+        guard !hasSeededWeightText else { return }
+        hasSeededWeightText = true
+
+        let entry = setValues[setId]
+        let storedWeight = entry?.weight ?? (set.value(forKey: "weight") as? Double ?? 0.0)
+
+        if storedWeight > 0 {
+            weightText = "\(Int(storedWeight))"
+        } else if entry?.weightEntered == true {
+            weightText = "0"
+        } else if isSetComplete, (set.value(forKey: "reps") as? Int16 ?? 0) > 0 {
+            // A completed set with reps but no weight was logged as bodyweight.
+            // Covers a workout restored after the in-memory entry state is gone.
+            weightText = "0"
+        } else {
+            weightText = ""
+        }
+    }
+
+    /// Writes the typed weight through to `setValues` and Core Data. An empty
+    /// field means "not entered" and restores the hint; any digits — including a
+    /// lone 0 — count as entered.
+    private func commitWeight(_ text: String) {
+        var entry = currentEntry
+
+        // Core Data holds the authoritative reps: the reps field writes to it on
+        // every keystroke, so reading it here can't clobber a value the user has
+        // already typed.
+        let reps = set.value(forKey: "reps") as? Int16 ?? 0
+
+        entry.weight = text.isEmpty ? 0 : (Double(text) ?? 0)
+        entry.weightEntered = !text.isEmpty
+        entry.reps = reps
+        setValues[setId] = entry
+
+        workoutManager.updateSet(set, reps: reps, weight: entry.weight)
+    }
+
     private var isSetComplete: Bool {
         get {
             if set.entity.propertiesByName["isComplete"] != nil {
@@ -933,7 +1005,7 @@ struct SetRow: View {
                             return reps > 0 ? "\(reps)" : ""
                         },
                         set: { newValue in
-                            var values = setValues[setId] ?? (reps: 0, weight: 0.0)
+                            var values = currentEntry
                             values.reps = Int16(newValue) ?? 0
                             setValues[setId] = values
                             if let reps = Int16(newValue), reps >= 0 {
@@ -974,37 +1046,39 @@ struct SetRow: View {
                     .foregroundColor(.secondary)
                 
                 ZStack(alignment: .center) {
-                    // Use a space instead of "0" as placeholder when there's a previous value
-                    let placeholder = (previousSetData?.weight ?? 0) > 0 ? " " : "0"
-                    
-                    TextField(placeholder, text: Binding(
-                        get: {
-                            if let values = setValues[setId] {
-                                return values.weight > 0 ? "\(Int(values.weight))" : ""
-                            }
-                            let weight = set.value(forKey: "weight") as? Double ?? 0.0
-                            return weight > 0 ? "\(Int(weight))" : ""
-                        },
+                    // The typed text — not the stored Double — is the source of truth
+                    // for what this field shows. Deriving the text from the number is
+                    // what made 0 impossible to enter: the getter mapped 0 back to ""
+                    // and every keystroke was erased. weightText keeps "0" and "" as
+                    // genuinely different states.
+                    //
+                    // The placeholder is intentionally empty. The hint below is the
+                    // single thing allowed to draw inside an empty field, so a hint
+                    // can never end up stacked on top of a typed value.
+                    TextField("", text: Binding(
+                        get: { weightText },
                         set: { newValue in
-                            var values = setValues[setId] ?? (reps: 0, weight: 0.0)
-                            values.weight = Double(newValue) ?? 0.0
-                            setValues[setId] = values
-                            if let weight = Double(newValue), weight >= 0 {
-                                let reps = setValues[setId]?.reps ?? (set.value(forKey: "reps") as? Int16 ?? 0)
-                                workoutManager.updateSet(set, reps: reps, weight: weight)
-                            } else if newValue.isEmpty {
-                                // Explicitly set to 0 when field is emptied
-                                values.weight = 0.0
-                                setValues[setId] = values
-                                workoutManager.updateSet(set, reps: setValues[setId]?.reps ?? (set.value(forKey: "reps") as? Int16 ?? 0), weight: 0.0)
+                            // numberPad blocks non-digits from the keyboard, but text
+                            // can still arrive by paste.
+                            var digits = String(newValue.filter { $0.isNumber })
+
+                            // Collapse leading zeros so correcting a typed 0 to 95
+                            // reads "95", not "095". A lone "0" is left alone — it is
+                            // a real value here, not a prefix.
+                            while digits.count > 1 && digits.hasPrefix("0") {
+                                digits.removeFirst()
                             }
+
+                            guard digits != weightText else { return }
+                            weightText = digits
+                            commitWeight(digits)
                         }
                     ))
                     .keyboardType(.numberPad)
                     .multilineTextAlignment(.center)
                     .padding(8)
                     .background(
-                        (setValues[setId]?.weight ?? 0) == 0 && (set.value(forKey: "weight") as? Double ?? 0.0) == 0
+                        weightText.isEmpty
                             ? Color(.systemGray6).opacity(0.7)
                             : Color(.systemGray6)
                     )
@@ -1012,7 +1086,9 @@ struct SetRow: View {
                     .frame(width: 60)
                     .focused($isTextFieldFocused)
                     .overlay {
-                        if (setValues[setId]?.weight ?? 0) == 0 && (set.value(forKey: "weight") as? Double ?? 0.0) == 0 {
+                        // Only ever visible while nothing is typed, so a typed 0
+                        // hides it like any other value.
+                        if weightText.isEmpty {
                             if let suggested = suggestedWeight {
                                 Text("\(Int(suggested))")
                                     .foregroundColor(.orange.opacity(0.6))
@@ -1069,6 +1145,8 @@ struct SetRow: View {
             .padding(.vertical, 6)
             .opacity(isActive ? 1.0 : 0.6)
             .onAppear {
+                seedWeightTextIfNeeded()
+
                 if let exerciseObj = set.value(forKey: "workoutExercise") as? NSManagedObject,
                    let exercise = exerciseObj.value(forKey: "exercise") as? NSManagedObject {
                     let setNum = set.value(forKey: "setNumber") as? Int16 ?? 0
