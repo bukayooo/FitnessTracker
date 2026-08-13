@@ -22,6 +22,10 @@
     <string>We need to update your health data for tracking.</string>
     <key>NSSupportsLiveActivities</key>
     <true/>
+    <!-- Declares that the app uses no non-exempt encryption, so TestFlight builds
+         skip the "Missing Compliance" prompt on every upload. -->
+    <key>ITSAppUsesNonExemptEncryption</key>
+    <false/>
     <key>NSSiriUsageDescription</key>
     <string>This app integrates with Siri to quickly start your workouts using voice commands.</string>
     <key>NSUserActivityTypes</key>
