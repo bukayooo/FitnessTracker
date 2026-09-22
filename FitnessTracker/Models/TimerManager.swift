@@ -51,8 +51,10 @@ class TimerManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
         super.init()
         // Register defaults so UserDefaults.bool returns true before the user visits Settings
         UserDefaults.standard.register(defaults: ["timerChimeEnabled": true])
-        // Request notification authorization with more options
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge, .provisional]) { granted, error in
+        // Request full notification authorization (not .provisional) so rest/warmup completion
+        // alerts actually play sound + vibrate when the app is backgrounded or the screen is locked.
+        // .provisional delivers notifications quietly (no banner, no sound, no haptic).
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
             if granted {
                 // Notification permission granted
                 
