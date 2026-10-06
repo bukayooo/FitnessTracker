@@ -48,13 +48,34 @@ workoutRequest.fetchLimit = 5 // Check the last 5 workouts
 
 4. **Consistent filtering in both history functions**:
    - `getLastWorkoutSetData`: Only searches completed workouts (duration > 0), fetchLimit increased from 5 to 10
-   - `getLastWorkoutSetsCount`: Now also filters by completed workouts (duration > 0)
+   - `getLastWorkoutSetsCount`: Now also filters by completed workouts (duration > 0) (later removed — set counts now come from the template only)
 
 ### Key Principles
 1. **Filter queries to exclude in-progress objects** - When loading historical data, exclude objects currently being created/modified
 2. **Use meaningful state indicators** - The `duration` field naturally separates completed vs incomplete workouts
 3. **Increase search depth for skipped items** - When items can be skipped in workflows, search further back in history
 4. **Debug logging with context** - Include workout dates and which workouts are being searched to make debugging easier
+
+## Example: "Add Set" Lag, Sticky Extra Sets, Swipe-to-Delete - FIXED ✅
+
+### Problems
+1. **Tapping "Add Set" did nothing for 10-30 seconds**, so users tapped again and got two sets
+2. **An accidentally added set reappeared in every future session** of that template
+3. **No way to remove a set** during a workout
+
+### Root Cause Analysis
+1. **Missing view invalidation, not slow code**: `ExerciseCard` held its `WorkoutExercise` as a plain `let`. `addSet` changed Core Data but nothing SwiftUI observed, so the new row appeared only when some unrelated state change happened to re-render the screen.
+2. **`startWorkout` used `max(template.sets, lastSessionSetCount)`**, so any extra set became permanent.
+
+### Solutions Applied
+1. `ExerciseCard` now has `@ObservedObject var exercise` (NSManagedObject is an ObservableObject), and `addSet`/`deleteSet` mutate via `workoutExercise.mutableSetValue(forKey: "sets")` so the parent fires `objectWillChange` immediately.
+2. Workouts started from a template use the template's set count only (`templateSetCount(for:)`); `getLastWorkoutSetsCount` was removed.
+3. `SwipeToDeleteRow` (WorkoutView.swift): a custom swipe-left gesture that reveals a Delete button, since sets live in a ScrollView, not a List. `deleteSet` renumbers the remaining sets so `setNumber`-based history lookups stay aligned.
+
+### Key Principles
+1. **"Lag" can be a missing re-render** - if an action's effect shows up later on an unrelated interaction, check that the view observes the changed object
+2. **Observe Core Data objects whose relationships a view displays**, and mutate to-many relationships from the parent side so the parent publishes the change
+3. **Templates are the source of truth for structure** - don't let one session's deviations feed back into future sessions silently. Instead, on "Finish Workout" the user is asked whether to apply any changed set counts to the template (`templateSetCountChanges(for:)` / `applyTemplateSetCountChanges`)
 
 ## Example: Excessive Battery Drain During Workouts - FIXED ✅
 

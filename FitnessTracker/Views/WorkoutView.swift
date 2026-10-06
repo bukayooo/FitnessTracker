@@ -36,6 +36,8 @@ struct WorkoutView: View {
     @State private var showingCancelAlert = false
     @State private var showingCompletionAlert = false
     @State private var showingCompletedWorkoutProgress = false
+    @State private var pendingSetCountChanges: [WorkoutManager.TemplateSetCountChange] = []
+    @State private var showingSetCountUpdateAlert = false
     @State private var isEditing = false
     @State private var isTemplateView: Bool
     @State private var editedTemplateName: String = ""
@@ -54,7 +56,8 @@ struct WorkoutView: View {
     @State private var hasLoggedWorkoutTimer = false
     @State private var hasLoggedWarmupStart = false
     @State private var hasLoggedWarmupLoading = false
-    @AppStorage("siriShortcutsEnabled") private var siriShortcutsEnabled = true
+    @AppStorage("siriShortcutsEnabled") private var siriShortcutsEnabled = true  // start-workout shortcut
+    @AppStorage("siriEndShortcutEnabled") private var siriEndShortcutEnabled = true
     @AppStorage("showWorkoutDetailsAfterCompletion") private var showWorkoutDetailsAfterCompletion = false
     
     init(workout: NSManagedObject, workoutManager: WorkoutManager, timerManager: TimerManager) {
@@ -438,16 +441,33 @@ struct WorkoutView: View {
                 Button("Complete", role: .none) {
                     let duration = timerManager.workoutElapsedSeconds
                     workoutManager.completeWorkout(workout, duration: duration)
-                    if showWorkoutDetailsAfterCompletion {
-                        showingCompletedWorkoutProgress = true
+
+                    // If sets were added/removed so an exercise no longer matches its
+                    // template, ask before wrapping up whether to keep that from now on.
+                    let changes = workoutManager.templateSetCountChanges(for: workout)
+                    if changes.isEmpty {
+                        finishCompletedWorkout()
                     } else {
-                        donateEndWorkoutShortcutIfEnabled()
-                        session.end()
+                        pendingSetCountChanges = changes
+                        showingSetCountUpdateAlert = true
                     }
                 }
                 Button("Continue Workout", role: .cancel) {}
             } message: {
                 Text("Have you completed all your exercises? The workout will be saved to your history.")
+            }
+            .alert("Update Template?", isPresented: $showingSetCountUpdateAlert) {
+                Button("Update Template") {
+                    workoutManager.applyTemplateSetCountChanges(pendingSetCountChanges)
+                    pendingSetCountChanges = []
+                    finishCompletedWorkout()
+                }
+                Button("Keep Template", role: .cancel) {
+                    pendingSetCountChanges = []
+                    finishCompletedWorkout()
+                }
+            } message: {
+                Text(setCountUpdateMessage)
             }
             .sheet(isPresented: $showingCompletedWorkoutProgress, onDismiss: {
                 donateEndWorkoutShortcutIfEnabled()
@@ -523,8 +543,28 @@ struct WorkoutView: View {
         workoutManager.deleteExercise(exercise)
     }
 
+    /// Runs after the workout has been saved as complete (and any template prompt answered).
+    private func finishCompletedWorkout() {
+        if showWorkoutDetailsAfterCompletion {
+            showingCompletedWorkoutProgress = true
+        } else {
+            donateEndWorkoutShortcutIfEnabled()
+            session.end()
+        }
+    }
+
+    private var setCountUpdateMessage: String {
+        let lines = pendingSetCountChanges.map { change in
+            "\(change.name): \(change.templateCount) → \(change.workoutCount) sets"
+        }
+        let subject = pendingSetCountChanges.count == 1 ? "this exercise" : "these exercises"
+        return "You did a different number of sets than \(templateName) asks for:\n\n"
+            + lines.joined(separator: "\n")
+            + "\n\nUse the new set count for \(subject) from now on?"
+    }
+
     private func donateEndWorkoutShortcutIfEnabled() {
-        if siriShortcutsEnabled {
+        if siriEndShortcutEnabled {
             SiriShortcutsManager.shared.donateEndWorkoutIntent(templateName: templateName)
             SiriShortcutsManager.shared.executeEndWorkoutBackgroundShortcut(for: templateName)
         }
@@ -664,7 +704,11 @@ private struct WorkoutTimerHeaderView: View {
 
 // MARK: - Exercise Card
 struct ExerciseCard: View {
-    let exercise: NSManagedObject
+    // Observed so adding/deleting a set (a change to this WorkoutExercise's `sets`
+    // relationship) re-renders the card immediately. As a plain `let`, nothing told
+    // SwiftUI the set list changed, so a new set only showed up whenever some unrelated
+    // state change happened to redraw the screen — often many seconds later.
+    @ObservedObject var exercise: NSManagedObject
     let workoutManager: WorkoutManager
     let timerManager: TimerManager
     @Binding var setValues: [String: SetEntry]
@@ -729,7 +773,7 @@ struct ExerciseCard: View {
                                 workoutManager.updateExercise(exercise, name: exerciseObj.name ?? "", sets: exerciseObj.sets)
                             }
                         ),
-                        in: 1...10
+                        in: 1...max(10, Int(exerciseObj.sets))
                     ) {
                         Text("Sets: \(Int(exerciseObj.sets))")
                     }
@@ -779,23 +823,25 @@ struct ExerciseCard: View {
                     Divider()
                     
                     ForEach(Array(sets.enumerated()), id: \.element) { index, set in
-                        SetRow(
-                            set: set,
-                            setNumber: index,
-                            isActive: activeSetIndex == index,
-                            setValues: $setValues,
-                            showingRestTimer: $showingRestTimer,
-                            activateNextSet: {
-                                if index < sets.count - 1 {
-                                    activeSetIndex = index + 1
-                                } else {
-                                    activeSetIndex = nil
-                                }
-                            },
-                            workoutManager: workoutManager,
-                            timerManager: timerManager,
-                            uniformSuggestion: uniformSuggestion
-                        )
+                        SwipeToDeleteRow(onDelete: { deleteSet(set, at: index) }) {
+                            SetRow(
+                                set: set,
+                                setNumber: index,
+                                isActive: activeSetIndex == index,
+                                setValues: $setValues,
+                                showingRestTimer: $showingRestTimer,
+                                activateNextSet: {
+                                    if index < sets.count - 1 {
+                                        activeSetIndex = index + 1
+                                    } else {
+                                        activeSetIndex = nil
+                                    }
+                                },
+                                workoutManager: workoutManager,
+                                timerManager: timerManager,
+                                uniformSuggestion: uniformSuggestion
+                            )
+                        }
                         
                         if index < sets.count - 1 {
                             Divider()
@@ -840,6 +886,105 @@ struct ExerciseCard: View {
         .onChange(of: uniformWeightSuggestionEnabled) { enabled in
             guard !isTemplateView, exercise.entity.name != "Exercise" else { return }
             uniformSuggestion = enabled ? workoutManager.getUniformWeightSuggestion(for: exercise) : nil
+        }
+    }
+
+    private func deleteSet(_ set: NSManagedObject, at index: Int) {
+        setValues.removeValue(forKey: set.objectID.uriRepresentation().absoluteString)
+
+        // Keep the highlighted row pointing at the same set after the rows below shift up
+        if let active = activeSetIndex {
+            if index < active {
+                activeSetIndex = active - 1
+            } else if index == active && index >= sets.count - 1 {
+                activeSetIndex = nil
+            }
+        }
+
+        workoutManager.deleteSet(set)
+    }
+}
+
+// MARK: - Swipe To Delete
+/// Swipe left to reveal a Delete button on the trailing edge; tap it to delete.
+/// Hand-rolled because sets live in a ScrollView/LazyVStack, where List's
+/// `.swipeActions` isn't available. There's intentionally no full-swipe-to-delete,
+/// so a sloppy swipe mid-workout can't wipe out a logged set.
+private struct SwipeToDeleteRow<Content: View>: View {
+    let onDelete: () -> Void
+    @ViewBuilder let content: Content
+
+    @State private var offset: CGFloat = 0
+    @State private var isOpen = false
+    // Decided once per drag so vertical scrolling never nudges the row sideways
+    @State private var isHorizontalDrag: Bool?
+
+    private let buttonWidth: CGFloat = 76
+    private let buttonGap: CGFloat = 10
+    // How far the row slides to sit open: the button plus a gap before the row's edge
+    private var revealWidth: CGFloat { buttonWidth + buttonGap }
+
+    var body: some View {
+        content
+            .background(Color(.secondarySystemGroupedBackground))
+            .overlay {
+                // While open, a tap on the row closes it instead of hitting its controls
+                if isOpen {
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .onTapGesture { setOpen(false) }
+                }
+            }
+            .offset(x: offset)
+            .background(alignment: .trailing) {
+                if offset < 0 {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            offset = 0
+                            isOpen = false
+                            onDelete()
+                        }
+                    } label: {
+                        VStack(spacing: 4) {
+                            Image(systemName: "trash")
+                            Text("Delete")
+                                .font(.caption.weight(.semibold))
+                        }
+                        .foregroundColor(.white)
+                        .frame(width: max(buttonWidth, -offset - buttonGap))
+                        .frame(maxHeight: .infinity)
+                        .background(Color.red, in: RoundedRectangle(cornerRadius: 8))
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.vertical, 4)
+                    .accessibilityLabel("Delete Set")
+                }
+            }
+            .clipped()
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 15)
+                    .onChanged { value in
+                        if isHorizontalDrag == nil {
+                            isHorizontalDrag = abs(value.translation.width) > abs(value.translation.height)
+                        }
+                        guard isHorizontalDrag == true else { return }
+                        let base: CGFloat = isOpen ? -revealWidth : 0
+                        offset = min(0, base + value.translation.width)
+                    }
+                    .onEnded { value in
+                        defer { isHorizontalDrag = nil }
+                        guard isHorizontalDrag == true else { return }
+                        let base: CGFloat = isOpen ? -revealWidth : 0
+                        setOpen(base + value.predictedEndTranslation.width < -revealWidth / 2)
+                    }
+            )
+            .accessibilityAction(named: "Delete Set", onDelete)
+    }
+
+    private func setOpen(_ open: Bool) {
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+            isOpen = open
+            offset = open ? -revealWidth : 0
         }
     }
 }
@@ -981,6 +1126,15 @@ struct SetRow: View {
         }
     }
     
+    private func loadPreviousSetData() {
+        guard let exerciseObj = set.value(forKey: "workoutExercise") as? NSManagedObject,
+              let exercise = exerciseObj.value(forKey: "exercise") as? NSManagedObject else { return }
+        let setNum = set.value(forKey: "setNumber") as? Int16 ?? 0
+        print("DEBUG: Fetching previous data for exercise: \(exercise.value(forKey: "name") ?? "unknown"), set: \(setNum)")
+        previousSetData = workoutManager.getLastWorkoutSetData(for: exercise, setNumber: setNum)
+        previousHeatRating = workoutManager.getLastWorkoutHeatRating(for: exercise, setNumber: setNum)
+    }
+
     var body: some View {
         VStack(spacing: 6) {
             HStack(spacing: 12) {
@@ -1146,17 +1300,15 @@ struct SetRow: View {
             .opacity(isActive ? 1.0 : 0.6)
             .onAppear {
                 seedWeightTextIfNeeded()
-
-                if let exerciseObj = set.value(forKey: "workoutExercise") as? NSManagedObject,
-                   let exercise = exerciseObj.value(forKey: "exercise") as? NSManagedObject {
-                    let setNum = set.value(forKey: "setNumber") as? Int16 ?? 0
-                    print("DEBUG: Fetching previous data for exercise: \(exercise.value(forKey: "name") ?? "unknown"), set: \(setNum)")
-                    previousSetData = workoutManager.getLastWorkoutSetData(for: exercise, setNumber: setNum)
-                    previousHeatRating = workoutManager.getLastWorkoutHeatRating(for: exercise, setNumber: setNum)
-                }
+                loadPreviousSetData()
                 // Restore any rating already entered this session (survives re-renders)
                 let stored = UserDefaults.standard.integer(forKey: "heat_\(setId)")
                 if stored > 0 { heatRating = stored }
+            }
+            // Deleting an earlier set renumbers this one; refresh its hints so they come
+            // from the matching set of the last session rather than its old position.
+            .onChange(of: setNumber) {
+                loadPreviousSetData()
             }
 
             if showingHeatPicker {

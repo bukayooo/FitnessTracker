@@ -11,7 +11,9 @@ import CoreData
 struct SettingsView: View {
     @AppStorage("weightSuggestionEnabled") private var weightSuggestionEnabled = true
     @AppStorage("uniformWeightSuggestionEnabled") private var uniformWeightSuggestionEnabled = false
+    // Key name predates the end-workout toggle; it now controls only the start shortcut
     @AppStorage("siriShortcutsEnabled") private var siriShortcutsEnabled = true
+    @AppStorage("siriEndShortcutEnabled") private var siriEndShortcutEnabled = true
     @AppStorage("timerChimeEnabled") private var timerChimeEnabled = true
     @AppStorage("showWorkoutDetailsAfterCompletion") private var showWorkoutDetailsAfterCompletion = false
     @AppStorage("dailyScheduleEnabled") private var dailyScheduleEnabled = false
@@ -89,9 +91,18 @@ struct SettingsView: View {
                     .disabled(!weightSuggestionEnabled)
                     Toggle(isOn: $siriShortcutsEnabled) {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("Siri Shortcuts")
+                            Text("Start Workout Shortcut")
                                 .font(.body)
-                            Text("Automatically run Siri shortcuts when you start and finish a workout. They must be named \"Start Workout\" and \"End Workout.\"")
+                            Text("Automatically run a Siri shortcut when you start a workout. It must be named \"Start Workout.\"")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    Toggle(isOn: $siriEndShortcutEnabled) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("End Workout Shortcut")
+                                .font(.body)
+                            Text("Automatically run a Siri shortcut when you finish a workout. It must be named \"End Workout.\"")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }

@@ -26,6 +26,14 @@ struct HeracleApp: App {
         let current = UserDefaults.standard.integer(forKey: "workoutHeaderImageIndex")
         UserDefaults.standard.set(current == 0 ? 1 : 0, forKey: "workoutHeaderImageIndex")
 
+        // The End Workout shortcut used to share the single "siriShortcutsEnabled" toggle
+        // (which now controls only the Start Workout shortcut). Seed its new toggle from
+        // the old one once, so nobody's existing on/off choice silently changes.
+        if UserDefaults.standard.object(forKey: "siriEndShortcutEnabled") == nil {
+            let wasEnabled = UserDefaults.standard.object(forKey: "siriShortcutsEnabled") as? Bool ?? true
+            UserDefaults.standard.set(wasEnabled, forKey: "siriEndShortcutEnabled")
+        }
+
         // DISABLED: Siri feature requires paid Apple Developer account
         // To re-enable: Uncomment the Intents import and this authorization code
         /*

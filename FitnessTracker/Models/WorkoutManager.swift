@@ -236,8 +236,7 @@ class WorkoutManager: ObservableObject {
             workoutExercise.setValue(workout, forKey: "workout")
             nextOrder += 1
 
-            let previousSetsCount = getLastWorkoutSetsCount(for: exercise)
-            let setsToCreate = max(Int(exercise.value(forKey: "sets") as? Int16 ?? 3), previousSetsCount)
+            let setsToCreate = templateSetCount(for: exercise)
 
             for setIndex in 0..<setsToCreate {
                 guard let setEntity = NSEntityDescription.entity(forEntityName: "ExerciseSet", in: viewContext) else { continue }
@@ -487,12 +486,10 @@ class WorkoutManager: ObservableObject {
                 workoutExercise.setValue(exercise, forKey: "exercise")
                 workoutExercise.setValue(workout, forKey: "workout")
                 
-                // Find previous workout data
-                let previousSetsCount = self.getLastWorkoutSetsCount(for: exercise)
-                let setsToCreate = max(Int(exercise.value(forKey: "sets") as? Int16 ?? 3), previousSetsCount)
+                let setsToCreate = self.templateSetCount(for: exercise)
 
                 let exerciseName = exercise.value(forKey: "name") as? String ?? "unknown"
-                print("DEBUG: 📊 Creating \(setsToCreate) sets for exercise: \(exerciseName) (previous workout had \(previousSetsCount) sets)")
+                print("DEBUG: 📊 Creating \(setsToCreate) sets for exercise: \(exerciseName) (from template)")
                 
                 // Create sets
                 for setIndex in 0..<setsToCreate {
@@ -556,6 +553,48 @@ class WorkoutManager: ObservableObject {
         saveContext()
     }
     
+    /// An exercise whose set count in a finished workout differs from what its template prescribes.
+    struct TemplateSetCountChange: Identifiable {
+        let templateExercise: NSManagedObject
+        let name: String
+        let templateCount: Int
+        let workoutCount: Int
+        var id: NSManagedObjectID { templateExercise.objectID }
+    }
+
+    /// Exercises in `workout` where the user ended up with more or fewer sets than the
+    /// template asks for, so they can choose whether to carry that change into the template.
+    /// Exercises added ad hoc during the workout (no template exercise) are skipped, as are
+    /// exercises whose sets were all deleted — a template exercise always has at least one set.
+    func templateSetCountChanges(for workout: NSManagedObject) -> [TemplateSetCountChange] {
+        guard let workoutExercises = workout.value(forKey: "exercises") as? Set<NSManagedObject> else { return [] }
+
+        return workoutExercises
+            .sorted { ($0.value(forKey: "order") as? Int16 ?? 0) < ($1.value(forKey: "order") as? Int16 ?? 0) }
+            .compactMap { workoutExercise in
+                guard let templateExercise = workoutExercise.value(forKey: "exercise") as? NSManagedObject,
+                      !templateExercise.isDeleted else { return nil }
+
+                let workoutCount = (workoutExercise.value(forKey: "sets") as? Set<NSManagedObject>)?.count ?? 0
+                let templateCount = templateSetCount(for: templateExercise)
+                guard workoutCount > 0, workoutCount != templateCount else { return nil }
+
+                return TemplateSetCountChange(
+                    templateExercise: templateExercise,
+                    name: templateExercise.value(forKey: "name") as? String ?? "Exercise",
+                    templateCount: templateCount,
+                    workoutCount: workoutCount
+                )
+            }
+    }
+
+    func applyTemplateSetCountChanges(_ changes: [TemplateSetCountChange]) {
+        for change in changes where !change.templateExercise.isDeleted {
+            change.templateExercise.setValue(Int16(change.workoutCount), forKey: "sets")
+        }
+        saveContext()
+    }
+
     func deleteWorkout(_ workout: NSManagedObject) {
         pendingSetSave?.cancel()
         pendingSetSave = nil
@@ -632,7 +671,12 @@ class WorkoutManager: ObservableObject {
         
         let exerciseSet = NSManagedObject(entity: entity, insertInto: viewContext)
         exerciseSet.setValue(highestSetNumber + 1, forKey: "setNumber")
-        exerciseSet.setValue(workoutExercise, forKey: "workoutExercise")
+        // Insert through the parent's to-many relationship (rather than only setting the
+        // set's to-one side) so the WorkoutExercise itself fires objectWillChange. The
+        // ExerciseCard observes the WorkoutExercise; without this the new row didn't appear
+        // until some unrelated state change happened to re-render the screen, sometimes
+        // tens of seconds later, which read as massive "add set" lag.
+        workoutExercise.mutableSetValue(forKey: "sets").add(exerciseSet)
         
         // Initialize isComplete property if it exists
         if entity.propertiesByName["isComplete"] != nil {
@@ -655,6 +699,35 @@ class WorkoutManager: ObservableObject {
         saveContext()
         return exerciseSet
     }
+
+    /// Deletes a set from an in-progress workout and renumbers the remaining sets so
+    /// setNumber stays contiguous (0, 1, 2…). History lookups match on setNumber, so a
+    /// gap would make e.g. the row labelled "Set 3" pull the hint for last session's set 4.
+    func deleteSet(_ set: NSManagedObject) {
+        let setId = set.objectID.uriRepresentation().absoluteString
+
+        if let workoutExercise = set.value(forKey: "workoutExercise") as? NSManagedObject {
+            // Remove through the parent's relationship so the observing ExerciseCard
+            // re-renders immediately (see addSet).
+            let sets = workoutExercise.mutableSetValue(forKey: "sets")
+            sets.remove(set)
+
+            let remaining = (sets.allObjects as? [NSManagedObject] ?? []).sorted {
+                ($0.value(forKey: "setNumber") as? Int16 ?? 0) < ($1.value(forKey: "setNumber") as? Int16 ?? 0)
+            }
+            for (index, remainingSet) in remaining.enumerated() where (remainingSet.value(forKey: "setNumber") as? Int16) != Int16(index) {
+                remainingSet.setValue(Int16(index), forKey: "setNumber")
+            }
+        }
+
+        viewContext.delete(set)
+
+        // Per-set values kept outside Core Data, keyed by the set's object ID
+        UserDefaults.standard.removeObject(forKey: "heat_\(setId)")
+        UserDefaults.standard.removeObject(forKey: "set_complete_\(setId)")
+
+        saveContext()
+    }
     
     // MARK: - Utility Methods
     
@@ -674,26 +747,12 @@ class WorkoutManager: ObservableObject {
         }
     }
     
-    private func getLastWorkoutSetsCount(for exercise: NSManagedObject) -> Int {
-        // Only fetch workout exercises from completed workouts (duration > 0)
-        let fetchRequest = NSFetchRequest<NSManagedObject>(entityName: "WorkoutExercise")
-        fetchRequest.predicate = NSPredicate(format: "exercise == %@ AND workout.duration > 0", exercise)
-        fetchRequest.sortDescriptors = [NSSortDescriptor(key: "workout.date", ascending: false)]
-        fetchRequest.fetchLimit = 1
-        
-        do {
-            guard let lastWorkoutExercise = try viewContext.fetch(fetchRequest).first else {
-                return 0
-            }
-            
-            let setsFetchRequest = NSFetchRequest<NSManagedObject>(entityName: "ExerciseSet")
-            setsFetchRequest.predicate = NSPredicate(format: "workoutExercise == %@", lastWorkoutExercise)
-            
-            return try viewContext.fetch(setsFetchRequest).count
-        } catch {
-            print("Error fetching last workout data: \(error)")
-            return 0
-        }
+    /// The number of sets a workout started from a template should get for this exercise.
+    /// This is deliberately the template's own count and nothing else: it used to be
+    /// max(template, last session), which made a single accidentally-added set carry
+    /// forward into every future session of that template forever.
+    private func templateSetCount(for exercise: NSManagedObject) -> Int {
+        max(1, Int(exercise.value(forKey: "sets") as? Int16 ?? 3))
     }
     
     func getLastWorkoutSetData(for exercise: NSManagedObject, setNumber: Int16) -> (reps: Int16, weight: Double)? {
