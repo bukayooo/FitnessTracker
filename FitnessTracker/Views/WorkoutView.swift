@@ -352,7 +352,10 @@ struct WorkoutView: View {
                         Spacer(minLength: 80)
                     }
                 }
-                
+                // The number pad has no return key, so dragging the list is the way
+                // to put it away once a set's reps/weight are in.
+                .scrollDismissesKeyboard(.interactively)
+
                 workoutControls()
             }
             .navigationTitle(templateName)
@@ -1002,7 +1005,12 @@ struct SetRow: View {
     var uniformSuggestion: Double? = nil
 
     @State private var showRestButton = false
-    @FocusState private var isTextFieldFocused: Bool
+    // One case per field. A single Bool shared by both fields is ambiguous ("true" can
+    // mean either field), so SwiftUI keeps re-resolving which one owns focus on every
+    // re-render. Each move re-scrolls the ScrollView to the focused field, which
+    // fights the user's drag (scrolling froze after typing a weight).
+    private enum Field { case reps, weight }
+    @FocusState private var focusedField: Field?
     @State private var weightText: String = ""
     @State private var hasSeededWeightText = false
     @State private var previousSetData: (reps: Int16, weight: Double)? = nil
@@ -1183,7 +1191,7 @@ struct SetRow: View {
                     )
                     .cornerRadius(8)
                     .frame(width: 60)
-                    .focused($isTextFieldFocused)
+                    .focused($focusedField, equals: .reps)
                     .overlay {
                         if let previousData = previousSetData,
                            previousData.reps > 0,
@@ -1238,7 +1246,7 @@ struct SetRow: View {
                     )
                     .cornerRadius(8)
                     .frame(width: 60)
-                    .focused($isTextFieldFocused)
+                    .focused($focusedField, equals: .weight)
                     .overlay {
                         // Only ever visible while nothing is typed, so a typed 0
                         // hides it like any other value.
