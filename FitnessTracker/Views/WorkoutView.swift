@@ -919,8 +919,6 @@ private struct SwipeToDeleteRow<Content: View>: View {
 
     @State private var offset: CGFloat = 0
     @State private var isOpen = false
-    // Decided once per drag so vertical scrolling never nudges the row sideways
-    @State private var isHorizontalDrag: Bool?
 
     private let buttonWidth: CGFloat = 76
     private let buttonGap: CGFloat = 10
@@ -964,22 +962,23 @@ private struct SwipeToDeleteRow<Content: View>: View {
                 }
             }
             .clipped()
-            .simultaneousGesture(
-                DragGesture(minimumDistance: 15)
-                    .onChanged { value in
-                        if isHorizontalDrag == nil {
-                            isHorizontalDrag = abs(value.translation.width) > abs(value.translation.height)
-                        }
-                        guard isHorizontalDrag == true else { return }
+            // A UIKit pan rather than a SwiftUI DragGesture: on iOS 18 a DragGesture on
+            // ScrollView content competes with the scroll view's own pan, and if a touch
+            // is interrupted (e.g. the keyboard appearing mid-touch) it can get stuck and
+            // freeze scrolling until a sheet presentation cancels all touches. This one
+            // refuses to begin unless the drag starts out horizontal, so vertical
+            // scrolling never involves it.
+            .gesture(
+                HorizontalPanGesture(
+                    onChanged: { dx in
                         let base: CGFloat = isOpen ? -revealWidth : 0
-                        offset = min(0, base + value.translation.width)
-                    }
-                    .onEnded { value in
-                        defer { isHorizontalDrag = nil }
-                        guard isHorizontalDrag == true else { return }
+                        offset = min(0, base + dx)
+                    },
+                    onEnded: { predictedDx in
                         let base: CGFloat = isOpen ? -revealWidth : 0
-                        setOpen(base + value.predictedEndTranslation.width < -revealWidth / 2)
+                        setOpen(base + predictedDx < -revealWidth / 2)
                     }
+                )
             )
             .accessibilityAction(named: "Delete Set", onDelete)
     }
@@ -988,6 +987,47 @@ private struct SwipeToDeleteRow<Content: View>: View {
         withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
             isOpen = open
             offset = open ? -revealWidth : 0
+        }
+    }
+}
+
+/// Horizontal-only pan for `SwipeToDeleteRow`. Reports the horizontal translation
+/// while dragging, and on release a projected end position that includes momentum,
+/// so a quick flick opens or closes the row like the system swipe actions do.
+private struct HorizontalPanGesture: UIGestureRecognizerRepresentable {
+    let onChanged: (CGFloat) -> Void
+    let onEnded: (CGFloat) -> Void
+
+    func makeCoordinator(converter: CoordinateSpaceConverter) -> Coordinator {
+        Coordinator()
+    }
+
+    func makeUIGestureRecognizer(context: Context) -> UIPanGestureRecognizer {
+        let pan = UIPanGestureRecognizer()
+        pan.delegate = context.coordinator
+        return pan
+    }
+
+    func handleUIGestureRecognizerAction(_ recognizer: UIPanGestureRecognizer, context: Context) {
+        let dx = recognizer.translation(in: recognizer.view).x
+        switch recognizer.state {
+        case .changed:
+            onChanged(dx)
+        case .ended:
+            onEnded(dx + recognizer.velocity(in: recognizer.view).x * 0.2)
+        case .cancelled, .failed:
+            // No momentum: settle back to wherever the drag was heading from rest.
+            onEnded(dx)
+        default:
+            break
+        }
+    }
+
+    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+            guard let pan = gestureRecognizer as? UIPanGestureRecognizer else { return false }
+            let velocity = pan.velocity(in: pan.view)
+            return abs(velocity.x) > abs(velocity.y)
         }
     }
 }
